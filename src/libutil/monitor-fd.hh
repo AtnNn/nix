@@ -4,14 +4,16 @@
 #include <atomic>
 
 #include <cstdlib>
-#include <poll.h>
+// TODO ATN #include <poll.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
 
+#include "windows.hh"
+
 namespace nix {
 
-
+#if NIX_HANDLE_INTERRUPTS
 class MonitorFdHup
 {
 private:
@@ -53,6 +55,6 @@ public:
         thread.join();
     }
 };
-
+#endif
 
 }

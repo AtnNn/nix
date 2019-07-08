@@ -182,10 +182,7 @@ PKG_CHECK_MODULES([LIBCURL], [libcurl], [CXXFLAGS="$LIBCURL_CFLAGS $CXXFLAGS"])
 # but e.g. Ubuntu 16.04 has an older version, so we fall back to searching for
 # editline.h when the pkg-config approach fails.
 PKG_CHECK_MODULES([EDITLINE], [libeditline], [CXXFLAGS="$EDITLINE_CFLAGS $CXXFLAGS"], [
-  AC_CHECK_HEADERS([editline.h], [true],
-    [AC_MSG_ERROR([Nix requires libeditline; it was found neither via pkg-config nor its normal header.])])
-  AC_SEARCH_LIBS([readline read_history], [editline], [],
-    [AC_MSG_ERROR([Nix requires libeditline; it was not found via pkg-config, but via its header, but required functions do not work. Maybe it is too old? >= 1.14 is required.])])
+  AC_CHECK_HEADERS([editline/readline.h])
 ])
 
 # Look for libsodium, an optional dependency.

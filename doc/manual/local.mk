@@ -14,7 +14,7 @@ XSLTPROC = $(xsltproc) --nonet $(xmlflags) \
   --param keep.relative.image.uris 0
 
 docbookxsl = http://docbook.sourceforge.net/release/xsl-ns/current
-docbookrng = http://docbook.org/xml/5.0/rng/docbook.rng
+docbookrng = /c/Users/elaurin/source/repos/nix/docbook.rng
 
 MANUAL_SRCS := $(call rwildcard, $(d), *.xml)
 
@@ -75,7 +75,7 @@ $(foreach file, $(wildcard $(d)/images/callouts/*.gif), $(eval $(call install-da
 $(eval $(call install-symlink, manual.html, $(docdir)/manual/index.html))
 
 
-all: $(d)/manual.html
+# all: $(d)/manual.html
 
 
 

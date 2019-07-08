@@ -9,6 +9,8 @@
 
 #include <sys/types.h>
 
+#define NIX_ALLOW_BUILD_USERS defined(__linux__) || defined(__APPLE__)
+
 namespace nix {
 
 typedef enum { smEnabled, smRelaxed, smDisabled } SandboxMode;

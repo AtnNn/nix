@@ -18,6 +18,7 @@
 #include "derivations.hh"
 #include "local-store.hh"
 #include "legacy.hh"
+#include "windows.hh"
 
 using namespace nix;
 using std::cin;
@@ -224,12 +225,16 @@ connected:
         {
             Activity act(*logger, lvlTalkative, actUnknown, fmt("waiting for the upload lock to '%s'", storeUri));
 
+#if NIX_HANDLE_INTERRUPTS
             auto old = signal(SIGALRM, handleAlarm);
             alarm(15 * 60);
+#endif
             if (!lockFile(uploadLock.get(), ltWrite, true))
                 printError("somebody is hogging the upload lock for '%s', continuing...");
+#if NIX_HANDLE_INTERRUPTS
             alarm(0);
             signal(SIGALRM, old);
+#endif
         }
 
         auto substitute = settings.buildersUseSubstitutes ? Substitute : NoSubstitute;

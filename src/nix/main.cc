@@ -12,9 +12,9 @@
 #include "finally.hh"
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <ifaddrs.h>
-#include <netdb.h>
+// TODO ATN #include <sys/socket.h>
+// TODO ATN #include <ifaddrs.h>
+// TODO ATN #include <netdb.h>
 
 extern std::string chrootHelperName;
 
@@ -25,6 +25,11 @@ namespace nix {
 /* Check if we have a non-loopback/link-local network interface. */
 static bool haveInternet()
 {
+
+#ifdef __MINGW32__
+    return true;
+
+#else
     struct ifaddrs * addrs;
 
     if (getifaddrs(&addrs))
@@ -46,6 +51,7 @@ static bool haveInternet()
     }
 
     return false;
+#endif
 }
 
 std::string programPath;

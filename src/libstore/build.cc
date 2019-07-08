@@ -40,7 +40,7 @@
 #include <cstring>
 #include <termios.h>
 
-#include <pwd.h>
+// TODO ATN #include <pwd.h>
 #include <grp.h>
 
 /* Includes required for chroot support. */
@@ -623,7 +623,6 @@ UserLock::~UserLock()
     assert(lockedPaths->count(fnUserLock));
     lockedPaths->erase(fnUserLock);
 }
-
 
 void UserLock::kill()
 {
@@ -1888,7 +1887,7 @@ void DerivationGoal::startBuilder()
     /* If `build-users-group' is not empty, then we have to build as
        one of the members of that group. */
     if (settings.buildUsersGroup != "" && getuid() == 0) {
-#if defined(__linux__) || defined(__APPLE__)
+#if NIX_ALLOW_BUILD_USERS
         buildUser = std::make_unique<UserLock>();
 
         /* Make sure that no other processes are executing under this

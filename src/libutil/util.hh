@@ -2,6 +2,7 @@
 
 #include "types.hh"
 #include "logging.hh"
+#include "windows.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -225,7 +226,7 @@ class Pid
 {
     pid_t pid = -1;
     bool separatePG = false;
-    int killSignal = SIGKILL;
+    // TODO ATN int killSignal = SIGKILL;
 public:
     Pid();
     Pid(pid_t pid);
@@ -240,10 +241,11 @@ public:
     pid_t release();
 };
 
-
+#ifdef NIX_ALLOW_BUILD_USERS
 /* Kill all processes running under the specified uid by sending them
    a SIGKILL. */
 void killUser(uid_t uid);
+#endif
 
 
 /* Fork a process that runs the given function, and return the child
@@ -484,11 +486,13 @@ std::unique_ptr<InterruptCallback> createInterruptCallback(
 
 void triggerInterrupt();
 
+
 /* A RAII class that causes the current thread to receive SIGUSR1 when
    the signal handler thread receives SIGINT. That is, this allows
    SIGINT to be multiplexed to multiple threads. */
 struct ReceiveInterrupts
 {
+#if NIX_HANDLE_INTERRUPTS
     pthread_t target;
     std::unique_ptr<InterruptCallback> callback;
 
@@ -496,6 +500,7 @@ struct ReceiveInterrupts
         : target(pthread_self())
         , callback(createInterruptCallback([&]() { pthread_kill(target, SIGUSR1); }))
     { }
+#endif
 };
 
 

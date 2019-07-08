@@ -896,7 +896,9 @@ static void opServe(Strings opFlags, Strings opArgs)
                 getBuildSettings();
 
                 try {
+#if NIX_HANDLE_INTERRUPTS
                     MonitorFdHup monitor(in.fd);
+#endif
                     store->buildPaths(paths);
                     out << 0;
                 } catch (Error & e) {
@@ -916,7 +918,9 @@ static void opServe(Strings opFlags, Strings opArgs)
 
                 getBuildSettings();
 
+#if NIX_HANDLE_INTERRUPTS
                 MonitorFdHup monitor(in.fd);
+#endif
                 auto status = store->buildDerivation(drvPath, drv);
 
                 out << status.status << status.errorMsg;

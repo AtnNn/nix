@@ -14,9 +14,13 @@
 // This results in linker errors due to to name-mangling of editline C symbols.
 // For compatibility with these versions, we wrap the API here
 // (wrapping multiple times on newer versions is no problem).
+#ifdef __MINGW32__
+#include <editline/readline.h>
+#else
 extern "C" {
 #include <editline.h>
 }
+#endif
 #endif
 
 #include "shared.hh"
@@ -222,12 +226,12 @@ void NixRepl::mainLoop(const std::vector<std::string> & files)
     // Allow nix-repl specific settings in .inputrc
     rl_readline_name = "nix-repl";
     createDirs(dirOf(historyFile));
-#ifndef READLINE
+#if !defined(READLINE) && !defined(__MINGW32__)
     el_hist_size = 1000;
 #endif
     read_history(historyFile.c_str());
     curRepl = this;
-#ifndef READLINE
+#if !defined(READLINE) && !defined(__MINGW32__)
     rl_set_complete_func(completionCallback);
     rl_set_list_possib_func(listPossibleCallback);
 #endif
@@ -266,6 +270,7 @@ void NixRepl::mainLoop(const std::vector<std::string> & files)
 
 bool NixRepl::getLine(string & input, const std::string &prompt)
 {
+#if NIX_HANDLE_INTERRUPTS
     struct sigaction act, old;
     sigset_t savedSignalMask, set;
 
@@ -290,8 +295,10 @@ bool NixRepl::getLine(string & input, const std::string &prompt)
     };
 
     setupSignals();
+#endif
     char * s = readline(prompt.c_str());
     Finally doFree([&]() { free(s); });
+#if NIX_HANDLE_INTERRUPTS
     restoreSignals();
 
     if (g_signal_received) {
@@ -299,6 +306,7 @@ bool NixRepl::getLine(string & input, const std::string &prompt)
         input.clear();
         return true;
     }
+#endif
 
     if (!s)
       return false;
@@ -373,12 +381,42 @@ StringSet NixRepl::completePrefix(string prefix)
     return completions;
 }
 
+string argv_to_command_line(Strings args) {
+    // TODO ATN https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments?view=vs-2019
+    bool space = false;
+    string res;
+    for (auto const& arg : args) {
+        if (space) {
+            res += " " + arg;
+        } else {
+            res += arg;
+            space = true;
+        }
+    }
+    return res;
+}
 
 static int runProgram(const string & program, const Strings & args)
 {
     Strings args2(args);
     args2.push_front(program);
 
+#if _WIN32
+    std::string command_line = argv_to_command_line(args2);
+    PROCESS_INFORMATION pi;
+    if (!CreateProcessA(program.c_str(), command_line.c_str(), nullptr, nullptr, false, 0, nullptr, nullptr, nullptr, &pi)) {
+        _exit(1);
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exit_code;
+    bool res = GetExitCodeProcess(processInformation.hProcess, &exit_code);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    if (!res) {
+        return -1;
+    }
+    return exit_code;
+#else
     Pid pid;
     pid = fork();
     if (pid == -1) throw SysError("forking");
@@ -389,6 +427,7 @@ static int runProgram(const string & program, const Strings & args)
     }
 
     return pid.wait();
+#endif
 }
 
 

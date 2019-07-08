@@ -10,6 +10,7 @@
 #include "derivations.hh"
 #include "finally.hh"
 #include "legacy.hh"
+#include "windows.hh"
 
 #include <algorithm>
 
@@ -17,13 +18,13 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <sys/wait.h>
+// TODO ATN #include <sys/wait.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+// TODO ATN #include <sys/socket.h>
+// TODO ATN #include <sys/un.h>
 #include <errno.h>
-#include <pwd.h>
-#include <grp.h>
+// TODO ATN #include <pwd.h>
+// TODO ATN #include <grp.h>
 #include <fcntl.h>
 #include <limits.h>
 
@@ -744,7 +745,9 @@ static void performOp(TunnelLogger * logger, ref<Store> store,
 
 static void processConnection(bool trusted)
 {
+#if NIX_HANDLE_INTERRUPTS
     MonitorFdHup monitor(from.fd);
+#endif
 
     /* Exchange the greeting. */
     unsigned int magic = readInt(from);
@@ -837,7 +840,7 @@ static void processConnection(bool trusted)
     }
 }
 
-
+#if NIX_HANDLE_INTERRUPTS
 static void sigChldHandler(int sigNo)
 {
     // Ensure we don't modify errno of whatever we've interrupted
@@ -846,16 +849,18 @@ static void sigChldHandler(int sigNo)
     while (waitpid(-1, 0, WNOHANG) > 0) ;
     errno = saved_errno;
 }
-
+#endif
 
 static void setSigChldAction(bool autoReap)
 {
+#if NIX_HANDLE_INTERRUPTS
     struct sigaction act, oact;
     act.sa_handler = autoReap ? sigChldHandler : SIG_DFL;
     sigfillset(&act.sa_mask);
     act.sa_flags = 0;
     if (sigaction(SIGCHLD, &act, &oact))
         throw SysError("setting SIGCHLD handler");
+#endif
 }
 
 
@@ -867,6 +872,8 @@ bool matchUser(const string & user, const string & group, const Strings & users)
     if (find(users.begin(), users.end(), user) != users.end())
         return true;
 
+#ifndef __MINGW32__
+    // TODO ATN
     for (auto & i : users)
         if (string(i, 0, 1) == "@") {
             if (group == string(i, 1)) return true;
@@ -875,7 +882,7 @@ bool matchUser(const string & user, const string & group, const Strings & users)
             for (char * * mem = gr->gr_mem; *mem; mem++)
                 if (user == string(*mem)) return true;
         }
-
+#endif
     return false;
 }
 

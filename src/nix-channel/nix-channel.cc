@@ -3,10 +3,11 @@
 #include "download.hh"
 #include "store-api.hh"
 #include "legacy.hh"
+#include "windows.hh"
 
 #include <fcntl.h>
 #include <regex>
-#include <pwd.h>
+// TODO ATN #include <pwd.h>
 
 using namespace nix;
 
@@ -136,8 +137,9 @@ static void update(const StringSet & channelNames)
     runProgram(settings.nixBinDir + "/nix-env", false, envArgs);
 
     // Make the channels appear in nix-env.
+#if NIX_SUPPORT_OLD_DEFEXPR
     struct stat st;
-    if (lstat(nixDefExpr.c_str(), &st) == 0) {
+    if (::lstat(nixDefExpr.c_str(), &st) == 0) {
         if (S_ISLNK(st.st_mode))
             // old-skool ~/.nix-defexpr
             if (unlink(nixDefExpr.c_str()) == -1)
@@ -145,6 +147,7 @@ static void update(const StringSet & channelNames)
     } else if (errno != ENOENT) {
         throw SysError(format("getting status of %1%") % nixDefExpr);
     }
+#endif
     createDirs(nixDefExpr);
     auto channelLink = nixDefExpr + "/channels";
     replaceSymlink(profile, channelLink);
@@ -160,8 +163,7 @@ static int _main(int argc, char ** argv)
 
         // Figure out the name of the channels profile.
         ;
-        auto pw = getpwuid(geteuid());
-        std::string name = pw ? pw->pw_name : getEnv("USER", "");
+        std::string name = get_current_user_name();
         if (name.empty())
             throw Error("cannot figure out user name");
         profile = settings.nixStateDir + "/profiles/per-user/" + name + "/channels";
