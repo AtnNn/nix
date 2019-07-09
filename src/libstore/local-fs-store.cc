@@ -36,12 +36,12 @@ struct LocalStoreAccessor : public FSAccessor
             throw SysError(format("getting status of '%1%'") % path);
         }
 
-        if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode))
+        if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode) && !(st.st_mode & S_IFLNK))
             throw Error(format("file '%1%' has unsupported type") % path);
 
         return {
             S_ISREG(st.st_mode) ? Type::tRegular :
-            S_ISLNK(st.st_mode) ? Type::tSymlink :
+            (st.st_mode & S_IFLNK) ? Type::tSymlink :
             Type::tDirectory,
             S_ISREG(st.st_mode) ? (uint64_t) st.st_size : 0,
             S_ISREG(st.st_mode) && st.st_mode & S_IXUSR};

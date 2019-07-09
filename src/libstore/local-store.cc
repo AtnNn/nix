@@ -12,7 +12,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/select.h>
+// TODO ATN #include <sys/select.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <utime.h>
@@ -30,7 +30,8 @@
 #include <sys/xattr.h>
 #endif
 
-#ifdef __CYGWIN__
+#ifdef __CYGWIN__ 
+#error TODO ATN
 #include <windows.h>
 #endif
 

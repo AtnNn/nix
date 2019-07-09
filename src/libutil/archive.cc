@@ -108,7 +108,7 @@ static void dump(const Path & path, Sink & sink, PathFilter & filter)
             }
     }
 
-    else if (S_ISLNK(st.st_mode))
+    else if (st.st_mode & S_IFLNK) // TODO ATN
         sink << "type" << "symlink" << "target" << readLink(path);
 
     else throw Error(format("file '%1%' has an unsupported type") % path);
@@ -315,11 +315,13 @@ struct RestoreSink : ParseSink
 
     void isExecutable()
     {
+#ifndef _WIN32
         struct stat st;
         if (fstat(fd.get(), &st) == -1)
             throw SysError("fstat");
         if (fchmod(fd.get(), st.st_mode | (S_IXUSR | S_IXGRP | S_IXOTH)) == -1)
             throw SysError("fchmod");
+#endif
     }
 
     void preallocateContents(unsigned long long len)

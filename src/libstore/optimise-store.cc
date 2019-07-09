@@ -62,7 +62,6 @@ LocalStore::InodeHash LocalStore::loadInodeHash()
     return inodeHash;
 }
 
-
 Strings LocalStore::readDirectoryIgnoringInodes(const Path & path, const InodeHash & inodeHash)
 {
     Strings names;

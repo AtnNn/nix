@@ -17,6 +17,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+// TODO ATN
+using INT = int;
+using FLOAT = float;
 #include <curl/curl.h>
 
 #include <algorithm>

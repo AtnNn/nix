@@ -34,6 +34,7 @@ extern "C" {
 #include "globals.hh"
 #include "command.hh"
 #include "finally.hh"
+#include "windows.hh"
 
 namespace nix {
 
@@ -403,17 +404,18 @@ static int runProgram(const string & program, const Strings & args)
 
 #if _WIN32
     std::string command_line = argv_to_command_line(args2);
+    std::vector<char> command_line_nc(command_line.c_str(), command_line.c_str() + command_line.size() + 1);
     PROCESS_INFORMATION pi;
-    if (!CreateProcessA(program.c_str(), command_line.c_str(), nullptr, nullptr, false, 0, nullptr, nullptr, nullptr, &pi)) {
-        _exit(1);
+    if (!CreateProcessA(nullptr, command_line_nc.data(), nullptr, nullptr, false, 0, nullptr, nullptr, nullptr, &pi)) {
+        return 1;
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
     DWORD exit_code;
-    bool res = GetExitCodeProcess(processInformation.hProcess, &exit_code);
+    bool res = GetExitCodeProcess(pi.hProcess, &exit_code);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     if (!res) {
-        return -1;
+        return 1;
     }
     return exit_code;
 #else

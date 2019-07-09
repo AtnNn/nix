@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <map>
 #include <thread>
-#include <dlfcn.h>
+// TODO ATN #include <dlfcn.h>
 
 
 namespace nix {
@@ -157,6 +157,7 @@ void MaxBuildJobsSetting::set(const std::string & str)
 
 void initPlugins()
 {
+#if !_WIN32 // TODO ATN
     for (const auto & pluginFile : settings.pluginFiles.get()) {
         Paths pluginFiles;
         try {
@@ -182,6 +183,7 @@ void initPlugins()
        unknown settings. */
     globalConfig.reapplyUnknownSettings();
     globalConfig.warnUnknownSettings();
+#endif
 }
 
 }

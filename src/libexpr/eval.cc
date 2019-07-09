@@ -1742,9 +1742,18 @@ void EvalState::printStats()
 {
     bool showStats = getEnv("NIX_SHOW_STATS", "0") != "0";
 
+#ifdef _WIN32
+    FILETIME utime;
+    GetProcessTimes(GetCurrentProcess(), nullptr, nullptr, nullptr, &utime);
+    ULARGE_INTEGER time;
+    time.LowPart = utime.dwLowDateTime;
+    time.HighPart = utime.dwHighDateTime;
+    float cpuTime = time.QuadPart / (double)10000000.0; // TODO ATN: test
+#else
     struct rusage buf;
     getrusage(RUSAGE_SELF, &buf);
     float cpuTime = buf.ru_utime.tv_sec + ((float) buf.ru_utime.tv_usec / 1000000);
+#endif
 
     uint64_t bEnvs = nrEnvs * sizeof(Env) + nrValuesInEnvs * sizeof(Value *);
     uint64_t bLists = nrListElems * sizeof(Value *);

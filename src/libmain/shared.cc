@@ -111,6 +111,7 @@ void initNix()
 
     loadConfFile();
 
+#if NIX_HANDLE_INTERRUPTS
     startSignalHandlerThread();
 
     /* Reset SIGCHLD to its default. */
@@ -121,7 +122,6 @@ void initNix()
     if (sigaction(SIGCHLD, &act, 0))
         throw SysError("resetting SIGCHLD");
 
-#if NIX_HANDLE_INTERRUPTS
     /* Install a dummy SIGUSR1 handler for use with pthread_kill(). */
     act.sa_handler = sigHandler;
     if (sigaction(SIGUSR1, &act, 0)) throw SysError("handling SIGUSR1");

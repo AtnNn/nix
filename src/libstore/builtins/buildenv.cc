@@ -69,7 +69,7 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
                 if (S_ISDIR(dstSt.st_mode)) {
                     createLinks(srcFile, dstFile, priority);
                     continue;
-                } else if (S_ISLNK(dstSt.st_mode)) {
+                } else if (dstSt.st_mode & S_IFLNK) {
                     auto target = canonPath(dstFile, true);
                     if (!S_ISDIR(lstat(target).st_mode))
                         throw Error("collision between '%1%' and non-directory '%2%'", srcFile, target);
@@ -89,7 +89,7 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
             struct stat dstSt;
             auto res = lstat(dstFile.c_str(), &dstSt);
             if (res == 0) {
-                if (S_ISLNK(dstSt.st_mode)) {
+                if (dstSt.st_mode & S_IFLNK) {
                     auto prevPriority = priorities[dstFile];
                     if (prevPriority == priority)
                         throw Error(

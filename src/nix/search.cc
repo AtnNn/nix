@@ -123,7 +123,7 @@ struct CmdSearch : SourceExprCommand, MixJSON
             debug("at attribute '%s'", attrPath);
 
             try {
-                uint found = 0;
+                unsigned int found = 0;
 
                 state->forceValue(*v);
 

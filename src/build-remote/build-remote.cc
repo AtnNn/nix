@@ -23,9 +23,6 @@
 using namespace nix;
 using std::cin;
 
-static void handleAlarm(int sig) {
-}
-
 std::string escapeUri(std::string uri)
 {
     std::replace(uri.begin(), uri.end(), '/', '_');

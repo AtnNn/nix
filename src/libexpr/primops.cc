@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <cstring>
 #include <regex>
-#include <dlfcn.h>
+// TODO ATN #include <dlfcn.h>
 
 
 namespace nix {
@@ -157,6 +157,9 @@ extern "C" typedef void (*ValueInitializer)(EvalState & state, Value & v);
 /* Load a ValueInitializer from a DSO and return whatever it initializes */
 void prim_importNative(EvalState & state, const Pos & pos, Value * * args, Value & v)
 {
+#if _WIN32
+    throw EvalError("importNative not supported on Windows");
+#else
     PathSet context;
     Path path = state.coerceToPath(pos, *args[0], context);
 
@@ -189,6 +192,7 @@ void prim_importNative(EvalState & state, const Pos & pos, Value * * args, Value
     (func)(state, v);
 
     /* We don't dlclose because v may be a primop referencing a function in the shared object file */
+#endif
 }
 
 
