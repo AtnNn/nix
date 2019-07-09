@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <cstring>
 #include <regex>
-// TODO ATN #include <dlfcn.h>
+// TODO WINDOWS #include <dlfcn.h>
 
 
 namespace nix {
@@ -958,12 +958,12 @@ static void prim_readDir(EvalState & state, const Pos & pos, Value * * args, Val
 
     for (auto & ent : entries) {
         Value * ent_val = state.allocAttr(v, state.symbols.create(ent.name));
-        if (ent.type == DT_UNKNOWN)
+        if (ent.type == FileType::missing)
             ent.type = getFileType(path + "/" + ent.name);
         mkStringNoCopy(*ent_val,
-            ent.type == DT_REG ? "regular" :
-            ent.type == DT_DIR ? "directory" :
-            ent.type == DT_LNK ? "symlink" :
+            ent.type == FileType::regular ? "regular" :
+            ent.type == FileType::directory ? "directory" :
+            ent.type == FileType::symlink ? "symlink" :
             "unknown");
     }
 
@@ -1043,7 +1043,7 @@ static void addPath(EvalState & state, const Pos & pos, const string & name, con
         path_ :
         state.checkSourcePath(path_);
     PathFilter filter = filterFun ? ([&](const Path & path) {
-        auto st = lstat(path);
+                                         FileType ft = lstat(path).type();
 
         /* Call the filter function.  The first argument is the path,
            the second is a string indicating the type of the file. */
@@ -1055,9 +1055,9 @@ static void addPath(EvalState & state, const Pos & pos, const string & name, con
 
         Value arg2;
         mkString(arg2,
-            S_ISREG(st.st_mode) ? "regular" :
-            S_ISDIR(st.st_mode) ? "directory" :
-            S_ISLNK(st.st_mode) ? "symlink" :
+            ft == FileType::regular ? "regular" :
+            ft == FileType::directory ? "directory" :
+            ft == FileType::symlink ? "symlink" :
             "unknown" /* not supported, will fail! */);
 
         Value res;

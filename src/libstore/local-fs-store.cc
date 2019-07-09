@@ -30,21 +30,25 @@ struct LocalStoreAccessor : public FSAccessor
     {
         auto realPath = toRealPath(path);
 
-        struct stat st;
-        if (lstat(realPath.c_str(), &st)) {
-            if (errno == ENOENT || errno == ENOTDIR) return {Type::tMissing, 0, false};
-            throw SysError(format("getting status of '%1%'") % path);
+        FileInfo fi = lstat(realPath);
+        if (fi.is_missing()) {
+            return {Type::tMissing, 0, false};
         }
 
-        if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode) && !(st.st_mode & S_IFLNK))
+        switch(fi.type()) {
+        default:
             throw Error(format("file '%1%' has unsupported type") % path);
+        case FileType::regular:
+        case FileType::symlink:
+        case FileType::directory:
+        }
 
         return {
-            S_ISREG(st.st_mode) ? Type::tRegular :
-            (st.st_mode & S_IFLNK) ? Type::tSymlink :
+            fi.is_regular() ? Type::tRegular :
+            fi.is_symlink() ? Type::tSymlink :
             Type::tDirectory,
-            S_ISREG(st.st_mode) ? (uint64_t) st.st_size : 0,
-            S_ISREG(st.st_mode) && st.st_mode & S_IXUSR};
+            fi.size(),
+            fi.is_regular() && fi.is_executable()};
     }
 
     StringSet readDirectory(const Path & path) override

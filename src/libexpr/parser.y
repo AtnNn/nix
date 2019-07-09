@@ -573,16 +573,15 @@ Path resolveExprPath(Path path)
 
     /* If `path' is a symlink, follow it.  This is so that relative
        path references work. */
-    struct stat st;
+    FileInfo fi;
     while (true) {
-        if (lstat(path.c_str(), &st))
-            throw SysError(format("getting status of '%1%'") % path);
-        if (!(st.st_mode & S_IFLNK)) break;
+        fi = lstat(path);
+        if (!fi.is_symlink()) break;
         path = absPath(readLink(path), dirOf(path));
     }
 
     /* If `path' refers to a directory, append `/default.nix'. */
-    if (S_ISDIR(st.st_mode))
+    if (fi.is_directory())
         path = canonPath(path + "/default.nix");
 
     return path;

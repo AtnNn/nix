@@ -7,7 +7,7 @@
 
 #include <fcntl.h>
 #include <regex>
-// TODO ATN #include <pwd.h>
+// TODO WINDOWS #include <pwd.h>
 
 using namespace nix;
 
@@ -137,17 +137,12 @@ static void update(const StringSet & channelNames)
     runProgram(settings.nixBinDir + "/nix-env", false, envArgs);
 
     // Make the channels appear in nix-env.
-#if NIX_SUPPORT_OLD_DEFEXPR
-    struct stat st;
-    if (::lstat(nixDefExpr.c_str(), &st) == 0) {
-        if (S_ISLNK(st.st_mode))
-            // old-skool ~/.nix-defexpr
-            if (unlink(nixDefExpr.c_str()) == -1)
-                throw SysError(format("unlinking %1%") % nixDefExpr);
-    } else if (errno != ENOENT) {
-        throw SysError(format("getting status of %1%") % nixDefExpr);
-    }
-#endif
+    FileInfo fi = lstat(nixDefExpr, true);
+    if (fi.is_symlink())
+        // old-skool ~/.nix-defexpr
+        if (unlink(nixDefExpr.c_str()) == -1)
+            throw SysError(format("unlinking %1%") % nixDefExpr);
+
     createDirs(nixDefExpr);
     auto channelLink = nixDefExpr + "/channels";
     replaceSymlink(profile, channelLink);

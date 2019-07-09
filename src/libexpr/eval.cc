@@ -12,12 +12,12 @@
 #include <cstring>
 #include <unistd.h>
 #include <sys/time.h>
-// TODO ATN #include <sys/resource.h>
+// TODO WINDOWS #include <sys/resource.h>
 #include <iostream>
 #include <fstream>
 
 #include <sys/time.h>
-// TODO ATN #include <sys/resource.h>
+// TODO WINDOWS #include <sys/resource.h>
 
 #if HAVE_BOEHMGC
 
@@ -1748,7 +1748,7 @@ void EvalState::printStats()
     ULARGE_INTEGER time;
     time.LowPart = utime.dwLowDateTime;
     time.HighPart = utime.dwHighDateTime;
-    float cpuTime = time.QuadPart / (double)10000000.0; // TODO ATN: test
+    float cpuTime = time.QuadPart / (double)10000000.0; // TODO WINDOWS: test
 #else
     struct rusage buf;
     getrusage(RUSAGE_SELF, &buf);

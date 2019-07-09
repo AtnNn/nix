@@ -220,8 +220,8 @@ void chrootHelper(int argc, char * * argv)
 
         for (auto entry : readDirectory("/")) {
             auto src = "/" + entry.name;
-            auto st = lstat(src);
-            if (!S_ISDIR(st.st_mode)) continue;
+            auto fi = lstat(src);
+            if (!fi.is_directory()) continue;
             Path dst = tmpDir + "/" + entry.name;
             if (pathExists(dst)) continue;
             if (mkdir(dst.c_str(), 0700) == -1)

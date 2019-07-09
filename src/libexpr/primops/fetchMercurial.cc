@@ -52,9 +52,9 @@ HgInfo exportMercurial(ref<Store> store, const std::string & uri,
                 assert(hasPrefix(p, uri));
                 std::string file(p, uri.size() + 1);
 
-                auto st = lstat(p);
+                FileInfo fi = lstat(p);
 
-                if (S_ISDIR(st.st_mode)) {
+                if (fi.is_directory()) {
                     auto prefix = file + "/";
                     auto i = files.lower_bound(prefix);
                     return i != files.end() && hasPrefix(*i, prefix);

@@ -11,7 +11,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO ATN #include <sys/statvfs.h>
+// TODO WINDOWS #include <sys/statvfs.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -260,7 +260,7 @@ void LocalStore::findTempRoots(FDs & fds, Roots & tempRoots, bool censor)
 }
 
 
-void LocalStore::findRoots(const Path & path, unsigned char type, Roots & roots)
+void LocalStore::findRoots(const Path & path, FileType type, Roots & roots)
 {
     auto foundRoot = [&](const Path & path, const Path & target) {
         Path storePath = toStorePath(target);
@@ -272,15 +272,15 @@ void LocalStore::findRoots(const Path & path, unsigned char type, Roots & roots)
 
     try {
 
-        if (type == DT_UNKNOWN)
+        if (type == FileType::missing)
             type = getFileType(path);
 
-        if (type == DT_DIR) {
+        if (type == FileType::directory) {
             for (auto & i : readDirectory(path))
                 findRoots(path + "/" + i.name, i.type, roots);
         }
 
-        else if (type == DT_LNK) {
+        else if (type == FileType::symlink) {
             Path target = readLink(path);
             if (isInStore(target))
                 foundRoot(path, target);
@@ -294,15 +294,15 @@ void LocalStore::findRoots(const Path & path, unsigned char type, Roots & roots)
                         unlink(path.c_str());
                     }
                 } else {
-                    struct stat st2 = lstat(target);
-                    if (!S_ISLNK(st2.st_mode)) return;
+                    FileInfo fi2 = lstat(target);
+                    if (!target.is_symlink()) return;
                     Path target2 = readLink(target);
                     if (isInStore(target2)) foundRoot(target, target2);
                 }
             }
         }
 
-        else if (type == DT_REG) {
+        else if (type == FileType::regular) {
             Path storePath = storeDir + "/" + baseNameOf(path);
             if (isStorePath(storePath) && isValidPath(storePath))
                 roots[storePath].emplace(path);
@@ -323,8 +323,8 @@ void LocalStore::findRoots(const Path & path, unsigned char type, Roots & roots)
 void LocalStore::findRootsNoTemp(Roots & roots, bool censor)
 {
     /* Process direct roots in {gcroots,profiles}. */
-    findRoots(stateDir + "/" + gcRootsDir, DT_UNKNOWN, roots);
-    findRoots(stateDir + "/profiles", DT_UNKNOWN, roots);
+    findRoots(stateDir + "/" + gcRootsDir, FileType::missing, roots);
+    findRoots(stateDir + "/profiles", FileType::missing, roots);
 
     /* Add additional roots returned by different platforms-specific
        heuristics.  This is typically used to add running programs to
@@ -532,10 +532,9 @@ void LocalStore::deletePathRecursive(GCState & state, const Path & path)
 
     Path realPath = realStoreDir + "/" + baseNameOf(path);
 
-    struct stat st;
-    if (lstat(realPath.c_str(), &st)) {
-        if (errno == ENOENT) return;
-        throw SysError(format("getting status of %1%") % realPath);
+    FileInfo fi = lstat(realPath, true);
+    if (fi.is_missing()) {
+        return;
     }
 
     printInfo(format("deleting '%1%'") % path);
@@ -547,12 +546,12 @@ void LocalStore::deletePathRecursive(GCState & state, const Path & path)
        not holding the global GC lock) we can delete the path without
        being afraid that the path has become alive again.  Otherwise
        delete it right away. */
-    if (state.moveToTrash && S_ISDIR(st.st_mode)) {
+    if (state.moveToTrash && fi.is_directory()) {
         // Estimate the amount freed using the narSize field.  FIXME:
         // if the path was not valid, need to determine the actual
         // size.
         try {
-            if (chmod(realPath.c_str(), st.st_mode | S_IWUSR) == -1)
+            if (chmod(realPath.c_str(), fi.mode() | S_IWUSR) == -1)
                 throw SysError(format("making '%1%' writable") % realPath);
             Path tmp = trashDir + "/" + baseNameOf(path);
             if (rename(realPath.c_str(), tmp.c_str()))
@@ -684,11 +683,9 @@ void LocalStore::removeUnusedLinks(const GCState & state)
         if (name == "." || name == "..") continue;
         Path path = linksDir + "/" + name;
 
-        struct stat st;
-        if (lstat(path.c_str(), &st) == -1)
-            throw SysError(format("statting '%1%'") % path);
+        FileInfo fi = lstat(path);
 
-        if (st.st_nlink != 1) {
+        if (st.st_nlink != 1) { // TODO WINDOWS: st_nlink?
             unsigned long long size = st.st_blocks * 512ULL;
             actualSize += size;
             unsharedSize += (st.st_nlink - 1) * size;

@@ -3,6 +3,7 @@
 #include "types.hh"
 #include "logging.hh"
 #include "windows.hh"
+#include "pathinfo.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,13 +18,6 @@
 #include <sstream>
 #include <optional>
 #include <future>
-
-#ifndef HAVE_STRUCT_DIRENT_D_TYPE
-#define DT_UNKNOWN 0
-#define DT_REG 1
-#define DT_LNK 2
-#define DT_DIR 3
-#endif
 
 namespace nix {
 
@@ -71,9 +65,6 @@ bool isInDir(const Path & path, const Path & dir);
 /* Check whether 'path' is equal to 'dir' or a descendant of 'dir'. */
 bool isDirOrInDir(const Path & path, const Path & dir);
 
-/* Get status of `path'. */
-struct stat lstat(const Path & path);
-
 /* Return true iff the given path exists. */
 bool pathExists(const Path & path);
 
@@ -89,8 +80,8 @@ struct DirEntry
 {
     string name;
     ino_t ino;
-    unsigned char type; // one of DT_*
-    DirEntry(const string & name, ino_t ino, unsigned char type)
+    FileType type;
+    DirEntry(const string & name, ino_t ino, FileType type)
         : name(name), ino(ino), type(type) { }
 };
 
@@ -98,7 +89,7 @@ typedef vector<DirEntry> DirEntries;
 
 DirEntries readDirectory(const Path & path);
 
-unsigned char getFileType(const Path & path);
+FileType getFileType(const Path & path);
 
 /* Read the contents of a file into a string. */
 string readFile(int fd);
@@ -226,7 +217,7 @@ class Pid
 {
     pid_t pid = -1;
     bool separatePG = false;
-    // TODO ATN int killSignal = SIGKILL;
+    // TODO WINDOWS int killSignal = SIGKILL;
 public:
     Pid();
     Pid(pid_t pid);

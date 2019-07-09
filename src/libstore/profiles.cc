@@ -48,10 +48,8 @@ Generations findGenerations(Path profile, int & curGen)
             Generation gen;
             gen.path = profileDir + "/" + i.name;
             gen.number = n;
-            struct stat st;
-            if (lstat(gen.path.c_str(), &st) != 0)
-                throw SysError(format("statting '%1%'") % gen.path);
-            gen.creationTime = st.st_mtime;
+            FileInfo fi = lstat(gen.path);
+            gen.creationTime = fi.mtime();
             gens.push_back(gen);
         }
     }

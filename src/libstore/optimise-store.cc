@@ -17,10 +17,8 @@ namespace nix {
 
 static void makeWritable(const Path & path)
 {
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting attributes of path '%1%'") % path);
-    if (chmod(path.c_str(), st.st_mode | S_IWUSR) == -1)
+    FileInfo fi = lstat(path);
+    if (chmod(path.c_str(), fi.mode() | S_IWUSR) == -1)
         throw SysError(format("changing writability of '%1%'") % path);
 }
 
@@ -93,9 +91,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
 {
     checkInterrupt();
 
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting attributes of path '%1%'") % path);
+    FileInfo fi = lstat(path);
 
 #if __APPLE__
     /* HFS/macOS has some undocumented security feature disabling hardlinking for
@@ -110,7 +106,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     }
 #endif
 
-    if (S_ISDIR(st.st_mode)) {
+    if (fi.is_directory()) {
         Strings names = readDirectoryIgnoringInodes(path, inodeHash);
         for (auto & i : names)
             optimisePath_(act, stats, path + "/" + i, inodeHash);
@@ -118,9 +114,9 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     }
 
     /* We can hard link regular files and maybe symlinks. */
-    if (!S_ISREG(st.st_mode)
+    if (!fi.is_regular()
 #if CAN_LINK_SYMLINK
-        && !S_ISLNK(st.st_mode)
+        && !fi.is_symlink()
 #endif
         ) return;
 
@@ -128,7 +124,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
        modified, in particular when running programs as root under
        NixOS (example: $fontconfig/var/cache being modified).  Skip
        those files.  FIXME: check the modification time. */
-    if (S_ISREG(st.st_mode) && (st.st_mode & S_IWUSR)) {
+    if (fi.is_regular() && (fi.mode() & S_IWUSR)) {
         printError(format("skipping suspicious writable file '%1%'") % path);
         return;
     }
@@ -183,11 +179,9 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
 
     /* Yes!  We've seen a file with the same contents.  Replace the
        current file with a hard link to that file. */
-    struct stat stLink;
-    if (lstat(linkPath.c_str(), &stLink))
-        throw SysError(format("getting attributes of path '%1%'") % linkPath);
+    FileInfo fiLink = lstat(linkPath);
 
-    if (st.st_ino == stLink.st_ino) {
+    if (fi.inode() == fiLink.inode()) {
         debug(format("'%1%' is already linked to '%2%'") % path % linkPath);
         return;
     }

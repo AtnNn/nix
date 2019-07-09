@@ -12,9 +12,9 @@
 #include "finally.hh"
 
 #include <sys/types.h>
-// TODO ATN #include <sys/socket.h>
-// TODO ATN #include <ifaddrs.h>
-// TODO ATN #include <netdb.h>
+// TODO WINDOWS #include <sys/socket.h>
+// TODO WINDOWS #include <ifaddrs.h>
+// TODO WINDOWS #include <netdb.h>
 
 extern std::string chrootHelperName;
 

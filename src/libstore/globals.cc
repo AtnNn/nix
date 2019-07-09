@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <map>
 #include <thread>
-// TODO ATN #include <dlfcn.h>
+// TODO WINDOWS #include <dlfcn.h>
 
 
 namespace nix {
@@ -157,7 +157,7 @@ void MaxBuildJobsSetting::set(const std::string & str)
 
 void initPlugins()
 {
-#if !_WIN32 // TODO ATN
+#if !_WIN32 // TODO WINDOWS
     for (const auto & pluginFile : settings.pluginFiles.get()) {
         Paths pluginFiles;
         try {

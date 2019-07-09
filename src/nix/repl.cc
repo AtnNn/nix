@@ -382,20 +382,47 @@ StringSet NixRepl::completePrefix(string prefix)
     return completions;
 }
 
-string argv_to_command_line(Strings args) {
-    // TODO ATN https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments?view=vs-2019
-    bool space = false;
-    string res;
-    for (auto const& arg : args) {
-        if (space) {
-            res += " " + arg;
-        } else {
-            res += arg;
-            space = true;
-        }
+std::string argvToWindowsCommandLine(Strings args) {
+  std::string res;
+  bool isFirst = true;
+  for (auto const& arg : args) {
+    if (isFirst) {
+        isFirst = false;
+    } else {
+        res.push_back(' ');
     }
-    return res;
+
+    if (arg.empty() == false &&
+        arg.find_first_of(" \t\n\v\"") == arg.npos) {
+        res.append(arg);
+    } else {
+        res.push_back('"');
+
+        for (auto it = arg.begin(); ; ++it) {
+            unsigned numberBackslashes = 0;
+
+            while (it != arg.end() && *it == '\\') {
+                ++it;
+                ++numberBackslashes;
+            }
+
+            if (it == arg.end()) {
+                res.append(numberBackslashes * 2, '\\');
+                break;
+            } else if (*it == '"') {
+                res.append(numberBackslashes * 2 + 1, '\\');
+                res.push_back (*it);
+            } else {
+                res.append(numberBackslashes, '\\');
+                res.push_back(*it);
+            }
+        }
+        res.push_back('"');
+    }
+  }
+  return res;
 }
+
 
 static int runProgram(const string & program, const Strings & args)
 {
@@ -403,19 +430,20 @@ static int runProgram(const string & program, const Strings & args)
     args2.push_front(program);
 
 #if _WIN32
-    std::string command_line = argv_to_command_line(args2);
+    std::string command_line = argvToWindowsCommandLine(args2);
     std::vector<char> command_line_nc(command_line.c_str(), command_line.c_str() + command_line.size() + 1);
     PROCESS_INFORMATION pi;
     if (!CreateProcessA(nullptr, command_line_nc.data(), nullptr, nullptr, false, 0, nullptr, nullptr, nullptr, &pi)) {
-        return 1;
+        throw SysError(format("CreateProcessA failed: %1%") % GetLastError());
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
     DWORD exit_code;
     bool res = GetExitCodeProcess(pi.hProcess, &exit_code);
+    DWORD error = GetLastError();
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     if (!res) {
-        return 1;
+        throw SysError(format("GetExitCodeProcess failed: %1%") % error);
     }
     return exit_code;
 #else

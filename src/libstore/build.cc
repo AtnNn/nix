@@ -26,11 +26,11 @@
 
 #include <limits.h>
 #include <sys/time.h>
-// TODO ATN #include <sys/wait.h>
+// TODO WINDOWS #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO ATN #include <sys/utsname.h>
-// TODO ATN #include <sys/select.h>
+// TODO WINDOWS #include <sys/utsname.h>
+// TODO WINDOWS #include <sys/select.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -40,7 +40,7 @@
 #include <cstring>
 #include <termios.h>
 
-// TODO ATN #include <pwd.h>
+// TODO WINDOWS #include <pwd.h>
 #include <grp.h>
 
 /* Includes required for chroot support. */
@@ -2076,10 +2076,9 @@ void DerivationGoal::startBuilder()
 
         for (auto & i : inputPaths) {
             Path r = worker.store.toRealPath(i);
-            struct stat st;
-            if (lstat(r.c_str(), &st))
-                throw SysError(format("getting attributes of path '%1%'") % i);
-            if (S_ISDIR(st.st_mode))
+            FileInfo fi = lstat(r);
+
+            if (fi.is_directory())
                 dirsInChroot[i] = r;
             else {
                 Path p = chrootRootDir + i;
@@ -2977,13 +2976,8 @@ void DerivationGoal::runChild()
                             % i.first % i.second.source);
 
                     string path = i.first;
-                    struct stat st;
-                    if (lstat(path.c_str(), &st)) {
-                        if (i.second.optional && errno == ENOENT)
-                            continue;
-                        throw SysError(format("getting attributes of path '%1%'") % path);
-                    }
-                    if (S_ISDIR(st.st_mode))
+                    FileInfo fi = lstat(path, i.second.optional);
+                    if (fi.is_directory())
                         sandboxProfile += (format("\t(subpath \"%1%\")\n") % path).str();
                     else
                         sandboxProfile += (format("\t(literal \"%1%\")\n") % path).str();
@@ -3152,13 +3146,11 @@ void DerivationGoal::registerOutputs()
                 actualPath = redirected;
         }
 
-        struct stat st;
-        if (lstat(actualPath.c_str(), &st) == -1) {
-            if (errno == ENOENT)
-                throw BuildError(
-                    format("builder for '%1%' failed to produce output path '%2%'")
-                    % drvPath % path);
-            throw SysError(format("getting attributes of path '%1%'") % actualPath);
+        FileInfo fi = lstat(actualPath, true);
+        if (fi.is_missing()) {
+            throw BuildError(
+                format("builder for '%1%' failed to produce output path '%2%'")
+                % drvPath % path);
         }
 
 #ifndef __CYGWIN__

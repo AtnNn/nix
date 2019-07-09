@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 #if _WIN32
 
 #define WIN32_LEAN_AND_MEAN
@@ -66,7 +64,7 @@ int setenv(char const* name, char const* val, int overwrite) {
 }
 
 int mkdir(char const* path, mode_t) {
-    // TODO ATN: mode
+    // TODO WINDOWS: mode
     if (!CreateDirectoryA(path, nullptr)) {
         errno = EINVAL;
         return -1;
@@ -97,10 +95,6 @@ void* localtime_r(time_t const* in, tm* out) {
         return nullptr;
     }
     return out;
-}
-
-int lstat(char const* path, struct stat* buf) {
-    return stat(path, buf); // TODO ATN: does it set S_IFLNK in mode for symlinks?
 }
 
 #else

@@ -16,12 +16,12 @@
 #include <future>
 
 #include <fcntl.h>
-// TODO ATN #include <grp.h>
+// TODO WINDOWS #include <grp.h>
 #include <limits.h>
-// TODO ATN #include <pwd.h>
-// TODO ATN #include <sys/ioctl.h>
+// TODO WINDOWS #include <pwd.h>
+// TODO WINDOWS #include <sys/ioctl.h>
 #include <sys/types.h>
-// TODO ATN #include <sys/wait.h>
+// TODO WINDOWS #include <sys/wait.h>
 #include <unistd.h>
 
 #ifdef __APPLE__
@@ -209,30 +209,18 @@ bool isDirOrInDir(const Path & path, const Path & dir)
     return path == dir || isInDir(path, dir);
 }
 
-
-struct stat lstat(const Path & path)
-{
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting status of '%1%'") % path);
-    return st;
-}
-
-
 bool pathExists(const Path & path)
 {
-    int res;
-    struct stat st;
-    res = lstat(path.c_str(), &st);
-    if (!res) return true;
-    if (errno != ENOENT && errno != ENOTDIR)
-        throw SysError(format("getting status of %1%") % path);
-    return false;
+    return !lstat(path).is_missing();
 }
 
 
 Path readLink(const Path & path)
 {
+#if _WIN32
+    // TODO WINDOWS
+    return "";
+#else
     checkInterrupt();
     std::vector<char> buf;
     for (ssize_t bufSize = PATH_MAX/4; true; bufSize += bufSize/2) {
@@ -246,13 +234,13 @@ Path readLink(const Path & path)
         else if (rlSize < bufSize)
             return string(buf.data(), rlSize);
     }
+#endif
 }
 
 
 bool isLink(const Path & path)
 {
-    struct stat st = lstat(path);
-    return S_ISLNK(st.st_mode);
+    lstat(path).is_symlink();
 }
 
 
@@ -271,9 +259,13 @@ DirEntries readDirectory(const Path & path)
         if (name == "." || name == "..") continue;
         entries.emplace_back(name, dirent->d_ino,
 #ifdef HAVE_STRUCT_DIRENT_D_TYPE
-            dirent->d_type
+            dirent->d_type == DT_LNK ? FileType::symlink :
+            dirent->d_type == DT_DIR ? FileType::directory :
+            dirent->d_type == DT_REG ? FileType::regular :
+            dirent->d_type == DT_UNKNOWN ? FileType::missing :
+            FileType::other
 #else
-            DT_UNKNOWN
+            FileType::missing
 #endif
         );
     }
@@ -283,13 +275,9 @@ DirEntries readDirectory(const Path & path)
 }
 
 
-unsigned char getFileType(const Path & path)
+FileType getFileType(const Path & path)
 {
-    struct stat st = lstat(path);
-    if (S_ISDIR(st.st_mode)) return DT_DIR;
-    if (S_ISLNK(st.st_mode)) return DT_LNK;
-    if (S_ISREG(st.st_mode)) return DT_REG;
-    return DT_UNKNOWN;
+    return lstat(path).type();
 }
 
 
@@ -381,20 +369,17 @@ static void _deletePath(const Path & path, unsigned long long & bytesFreed)
 {
     checkInterrupt();
 
-    struct stat st;
-    if (lstat(path.c_str(), &st) == -1) {
-        if (errno == ENOENT) return;
-        throw SysError(format("getting status of '%1%'") % path);
-    }
+    FileInfo fi = lstat(path, true);
+    if (fi.is_missing()) return;
 
-    if (!S_ISDIR(st.st_mode) && st.st_nlink == 1)
-        bytesFreed += st.st_blocks * 512;
+    if (!fi.is_directory() && fi.hardlink_count() == 1)
+        bytesFreed += fi.size_on_disk();
 
-    if (S_ISDIR(st.st_mode)) {
+    if (fi.is_directory()) {
         /* Make the directory accessible. */
         const auto PERM_MASK = S_IRUSR | S_IWUSR | S_IXUSR;
-        if ((st.st_mode & PERM_MASK) != PERM_MASK) {
-            if (chmod(path.c_str(), st.st_mode | PERM_MASK) == -1)
+        if ((fi.mode() & PERM_MASK) != PERM_MASK) {
+            if (chmod(path.c_str(), fi.mode() | PERM_MASK) == -1)
                 throw SysError(format("chmod '%1%'") % path);
         }
 
@@ -467,6 +452,13 @@ Path createTempDir(const Path & tmpRoot, const Path & prefix,
 
 
 static Lazy<Path> getHome2([]() {
+#ifdef _WIN32
+     Path homeDir = getEnv("USERPROFILE");
+     if (homeDir.empty()) {
+         throw Error("cannot determine user's home directory");
+     }
+     return homeDir;
+#else
     Path homeDir = getEnv("HOME");
     if (homeDir.empty()) {
         std::vector<char> buf(16384);
@@ -478,6 +470,7 @@ static Lazy<Path> getHome2([]() {
         homeDir = pw->pw_dir;
     }
     return homeDir;
+#endif
 });
 
 Path getHome() { return getHome2(); }
@@ -524,19 +517,19 @@ Paths createDirs(const Path & path)
     Paths created;
     if (path == "/") return created;
 
-    struct stat st;
-    if (lstat(path.c_str(), &st) == -1) {
+    FileInfo fi = lstat(path, true);
+    if (fi.is_missing()) {
         created = createDirs(dirOf(path));
         if (mkdir(path.c_str(), 0777) == -1 && errno != EEXIST)
             throw SysError(format("creating directory '%1%'") % path);
-        st = lstat(path);
+        fi = lstat(path);
         created.push_back(path);
     }
 
-    if (S_ISLNK(st.st_mode) && stat(path.c_str(), &st) == -1)
-        throw SysError(format("statting symlink '%1%'") % path);
+    if (fi.is_symlink())
+        fi = stat(path);
 
-    if (!S_ISDIR(st.st_mode)) throw Error(format("'%1%' is not a directory") % path);
+    if (!fi.is_directory()) throw Error(format("'%1%' is not a directory") % path);
 
     return created;
 }
@@ -544,8 +537,12 @@ Paths createDirs(const Path & path)
 
 void createSymlink(const Path & target, const Path & link)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     if (symlink(target.c_str(), link.c_str()))
         throw SysError(format("creating symlink from '%1%' to '%2%'") % link % target);
+#endif
 }
 
 
@@ -792,7 +789,7 @@ void Pid::operator =(pid_t pid)
 {
     if (this->pid != -1 && this->pid != pid) kill();
     this->pid = pid;
-    killSignal = SIGKILL; // reset signal to default
+    // TODO WINDOWS killSignal = SIGKILL; // reset signal to default
 }
 
 

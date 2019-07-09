@@ -12,7 +12,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO ATN #include <sys/select.h>
+// TODO WINDOWS #include <sys/select.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <utime.h>
@@ -31,7 +31,7 @@
 #endif
 
 #ifdef __CYGWIN__ 
-#error TODO ATN
+#error TODO WINDOWS
 #include <windows.h>
 #endif
 
@@ -103,11 +103,9 @@ LocalStore::LocalStore(const Params & params)
     /* Ensure that the store and its parents are not symlinks. */
     if (getEnv("NIX_IGNORE_SYMLINK_STORE") != "1") {
         Path path = realStoreDir;
-        struct stat st;
         while (path != "/") {
-            if (lstat(path.c_str(), &st))
-                throw SysError(format("getting status of '%1%'") % path);
-            if (S_ISLNK(st.st_mode))
+            FileInfo fi = lstat(path);
+            if (fi.is_symlink())
                 throw Error(format(
                         "the path '%1%' is a symlink; "
                         "this is not allowed for the Nix store and its parent directories")
@@ -380,24 +378,24 @@ void LocalStore::makeStoreWritable()
 const time_t mtimeStore = 1; /* 1 second into the epoch */
 
 
-static void canonicaliseTimestampAndPermissions(const Path & path, const struct stat & st)
+static void canonicaliseTimestampAndPermissions(const Path & path, FileInfo const& fi)
 {
-    if (!S_ISLNK(st.st_mode)) {
+    if (!fi.is_symlink())) {
 
         /* Mask out all type related bits. */
-        mode_t mode = st.st_mode & ~S_IFMT;
+    mode_t mode = fi.mode() & ~S_IFMT;
 
         if (mode != 0444 && mode != 0555) {
-            mode = (st.st_mode & S_IFMT)
+            mode = (fi.mode() & S_IFMT)
                  | 0444
-                 | (st.st_mode & S_IXUSR ? 0111 : 0);
+                | (fi.mode() & S_IXUSR ? 0111 : 0);
             if (chmod(path.c_str(), mode) == -1)
                 throw SysError(format("changing mode of '%1%' to %2$o") % path % mode);
         }
 
     }
 
-    if (st.st_mtime != mtimeStore) {
+if (fi.mtime() != mtimeStore) {
         struct timeval times[2];
         times[0].tv_sec = st.st_atime;
         times[0].tv_usec = 0;
@@ -417,10 +415,7 @@ static void canonicaliseTimestampAndPermissions(const Path & path, const struct 
 
 void canonicaliseTimestampAndPermissions(const Path & path)
 {
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting attributes of path '%1%'") % path);
-    canonicaliseTimestampAndPermissions(path, st);
+    canonicaliseTimestampAndPermissions(path, lstat(path));
 }
 
 
@@ -438,13 +433,16 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
     }
 #endif
 
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting attributes of path '%1%'") % path);
+    FileInfo fi = lstat(path);
 
     /* Really make sure that the path is of a supported type. */
-    if (!(S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) || S_ISLNK(st.st_mode)))
+    switch (fi.type()) {
+    default:
         throw Error(format("file '%1%' has an unsupported type") % path);
+    case FileType::directory:
+    case FileType::symlink:
+    case FileType::regular:
+    }
 
 #if __linux__
     /* Remove extended attributes / ACLs. */
@@ -520,12 +518,10 @@ void canonicalisePathMetaData(const Path & path, uid_t fromUid, InodesSeen & ino
 
     /* On platforms that don't have lchown(), the top-level path can't
        be a symlink, since we can't change its ownership. */
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting attributes of path '%1%'") % path);
+    FileInfo fi = lstat(path);
 
-    if (st.st_uid != geteuid()) {
-        assert(S_ISLNK(st.st_mode));
+    if (fi.owner() != geteuid()) {
+        assert(fi.is_symlink());
         throw Error(format("wrong ownership of top-level store path '%1%'") % path);
     }
 }
@@ -1351,11 +1347,11 @@ static void makeMutable(const Path & path)
 {
     checkInterrupt();
 
-    struct stat st = lstat(path);
+    FileInfo fi = lstat(path);
 
-    if (!S_ISDIR(st.st_mode) && !S_ISREG(st.st_mode)) return;
+    if (!fi.is_directory() && !fi.is_regular()) return;
 
-    if (S_ISDIR(st.st_mode)) {
+    if (fi.is_directory()) {
         for (auto & i : readDirectory(path))
             makeMutable(path + "/" + i.name);
     }

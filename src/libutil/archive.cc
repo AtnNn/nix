@@ -66,20 +66,18 @@ static void dump(const Path & path, Sink & sink, PathFilter & filter)
 {
     checkInterrupt();
 
-    struct stat st;
-    if (lstat(path.c_str(), &st))
-        throw SysError(format("getting attributes of path '%1%'") % path);
+    FileInfo fi = lstat(path);
 
     sink << "(";
 
-    if (S_ISREG(st.st_mode)) {
+    if (fi.is_regular()) {
         sink << "type" << "regular";
-        if (st.st_mode & S_IXUSR)
+        if (fi.is_executable())
             sink << "executable" << "";
-        dumpContents(path, (size_t) st.st_size, sink);
+        dumpContents(path, (size_t) fi.size(), sink);
     }
 
-    else if (S_ISDIR(st.st_mode)) {
+    else if (fi.is_directory()) {
         sink << "type" << "directory";
 
         /* If we're on a case-insensitive system like macOS, undo
@@ -108,7 +106,7 @@ static void dump(const Path & path, Sink & sink, PathFilter & filter)
             }
     }
 
-    else if (st.st_mode & S_IFLNK) // TODO ATN
+    else if (fi.is_symlink())
         sink << "type" << "symlink" << "target" << readLink(path);
 
     else throw Error(format("file '%1%' has an unsupported type") % path);

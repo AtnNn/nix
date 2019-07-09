@@ -18,13 +18,13 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
-// TODO ATN #include <sys/wait.h>
+// TODO WINDOWS #include <sys/wait.h>
 #include <sys/stat.h>
-// TODO ATN #include <sys/socket.h>
-// TODO ATN #include <sys/un.h>
+// TODO WINDOWS #include <sys/socket.h>
+// TODO WINDOWS #include <sys/un.h>
 #include <errno.h>
-// TODO ATN #include <pwd.h>
-// TODO ATN #include <grp.h>
+// TODO WINDOWS #include <pwd.h>
+// TODO WINDOWS #include <grp.h>
 #include <fcntl.h>
 #include <limits.h>
 
@@ -873,7 +873,7 @@ bool matchUser(const string & user, const string & group, const Strings & users)
         return true;
 
 #ifndef __MINGW32__
-    // TODO ATN
+    // TODO WINDOWS
     for (auto & i : users)
         if (string(i, 0, 1) == "@") {
             if (group == string(i, 1)) return true;

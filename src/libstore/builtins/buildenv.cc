@@ -63,15 +63,14 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
             continue;
 
         else if (S_ISDIR(srcSt.st_mode)) {
-            struct stat dstSt;
-            auto res = lstat(dstFile.c_str(), &dstSt);
-            if (res == 0) {
-                if (S_ISDIR(dstSt.st_mode)) {
+            FileInfo dstFi = lstat(dstFile, true);
+            if (!dstFi.is_missing()) {
+                if (dstFi.is_directory()) {
                     createLinks(srcFile, dstFile, priority);
                     continue;
-                } else if (dstSt.st_mode & S_IFLNK) {
+                } else if (dstFi.is_synlink()) {
                     auto target = canonPath(dstFile, true);
-                    if (!S_ISDIR(lstat(target).st_mode))
+                    if (!lstat(target).is_directory()))
                         throw Error("collision between '%1%' and non-directory '%2%'", srcFile, target);
                     if (unlink(dstFile.c_str()) == -1)
                         throw SysError(format("unlinking '%1%'") % dstFile);
@@ -81,15 +80,13 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
                     createLinks(srcFile, dstFile, priority);
                     continue;
                 }
-            } else if (errno != ENOENT)
-                throw SysError(format("getting status of '%1%'") % dstFile);
+            }
         }
 
         else {
-            struct stat dstSt;
-            auto res = lstat(dstFile.c_str(), &dstSt);
-            if (res == 0) {
-                if (dstSt.st_mode & S_IFLNK) {
+            FileInfo dstFi = lstat(dstFile, true);
+            if (!dstFi.is_missing()) {
+                if (dstFi.is_symlink()) {
                     auto prevPriority = priorities[dstFile];
                     if (prevPriority == priority)
                         throw Error(
@@ -102,10 +99,9 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
                         continue;
                     if (unlink(dstFile.c_str()) == -1)
                         throw SysError(format("unlinking '%1%'") % dstFile);
-                } else if (S_ISDIR(dstSt.st_mode))
+                } else if (dstFi.is_directory()))
                     throw Error("collision between non-directory '%1%' and directory '%2%'", srcFile, dstFile);
-            } else if (errno != ENOENT)
-                throw SysError(format("getting status of '%1%'") % dstFile);
+            }
         }
 
         createSymlink(srcFile, dstFile);
