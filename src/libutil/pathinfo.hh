@@ -91,12 +91,7 @@ public:
     return st.st_nlink;
 #endif
   }
-
-    int mtime() {
-        // TODO WINDOWS and others too
-        return 0;
-    }
-
+    
 private:
     friend FileInfo lstat(Path const &path, bool allowMissing);
     friend FileInfo stat(Path const &path);
@@ -134,6 +129,7 @@ inline FileInfo lstat(Path const &path, bool allowMissing = false) {
 
 Path readlink(Path const& link) {
     // TODO WINDOWS
+    return "";
 }
 
 #if _WIN32

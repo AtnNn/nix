@@ -132,7 +132,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
 
     /* This can still happen on top-level files. */
     if (fi.hardlink_count() > 1 && inodeHash.count(fi.inode())) {
-        debug(format("'%1%' is already linked, with %2% other file(s)") % path % (st.st_nlink - 2));
+        debug(format("'%1%' is already linked, with %2% other file(s)") % path % (fi.hardlink_count() - 2));
         return;
     }
 

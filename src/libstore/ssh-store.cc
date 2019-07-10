@@ -1,3 +1,5 @@
+#if NIX_ALLOW_REMOTE_STORE
+
 #include "store-api.hh"
 #include "remote-store.hh"
 #include "remote-fs-accessor.hh"
@@ -95,3 +97,5 @@ static RegisterStoreImplementation regStore([](
 });
 
 }
+
+#endif NIX_ALLOW_REMOTE_STORE

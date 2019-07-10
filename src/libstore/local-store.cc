@@ -384,7 +384,7 @@ const time_t mtimeStore = 1; /* 1 second into the epoch */
 
 static void canonicaliseTimestampAndPermissions(const Path & path, FileInfo const& fi)
 {
-    if (!fi.is_symlink())) {
+    if (!fi.is_symlink()) {
 
         /* Mask out all type related bits. */
     mode_t mode = fi.mode() & ~S_IFMT;
@@ -399,21 +399,29 @@ static void canonicaliseTimestampAndPermissions(const Path & path, FileInfo cons
 
     }
 
-if (fi.mtime() != mtimeStore) {
+    if (fi.mtime() != mtimeStore) {
+#if _WIN32
+        __utimbuf64 times;
+        times.actime = fi.atime();
+        times.modtime = mTimeStore;
+        if (!fi.is_symlink() && _utime64(path.c_str(), &times) == -1)
+#else
         struct timeval times[2];
-        times[0].tv_sec = st.st_atime;
+        times[0].tv_sec = fi.atime();
         times[0].tv_usec = 0;
         times[1].tv_sec = mtimeStore;
         times[1].tv_usec = 0;
 #if HAVE_LUTIMES
         if (lutimes(path.c_str(), times) == -1)
             if (errno != ENOSYS ||
-                (!S_ISLNK(st.st_mode) && utimes(path.c_str(), times) == -1))
+                (!fi.is_symlink() && utimes(path.c_str(), times) == -1))
 #else
-        if (!S_ISLNK(st.st_mode) && utimes(path.c_str(), times) == -1)
+                if (!fi.is_symlink() && utimes(path.c_str(), times) == -1)
 #endif
-            throw SysError(format("changing modification time of '%1%'") % path);
+#endif
+                    throw SysError(format("changing modification time of '%1%'") % path);
     }
+
 }
 
 
@@ -446,6 +454,7 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
     case FileType::directory:
     case FileType::symlink:
     case FileType::regular:
+        ;
     }
 
 #if __linux__
@@ -477,18 +486,18 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
        However, ignore files that we chown'ed ourselves previously to
        ensure that we don't fail on hard links within the same build
        (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
-    if (fromUid != (uid_t) -1 && st.st_uid != fromUid) {
+    if (fromUid != (uid_t) -1 && fi.uid() != fromUid) {
         assert(!S_ISDIR(st.st_mode));
         if (inodesSeen.find(Inode(st.st_dev, st.st_ino)) == inodesSeen.end())
             throw BuildError(format("invalid ownership on file '%1%'") % path);
-        mode_t mode = st.st_mode & ~S_IFMT;
-        assert(S_ISLNK(st.st_mode) || (st.st_uid == geteuid() && (mode == 0444 || mode == 0555) && st.st_mtime == mtimeStore));
+        mode_t mode = fi.mode() & ~S_IFMT;
+        assert(fi.is_symlink() || (fi.owner() == geteuid() && (mode == 0444 || mode == 0555) && fi.mtime() == mtimeStore));
         return;
     }
 
-    inodesSeen.insert(Inode(st.st_dev, st.st_ino));
+    inodesSeen.insert(Inode(fi.device(), fi.inode()));
 
-    canonicaliseTimestampAndPermissions(path, st);
+    canonicaliseTimestampAndPermissions(path, fi);
 
     /* Change ownership to the current uid.  If it's a symlink, use
        lchown if available, otherwise don't bother.  Wrong ownership
@@ -497,12 +506,12 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
        writable.  The only exception is top-level paths in the Nix
        store (since that directory is group-writable for the Nix build
        users group); we check for this case below. */
-    if (st.st_uid != geteuid()) {
+    if (fi.uid() != geteuid()) {
 #if HAVE_LCHOWN
         if (lchown(path.c_str(), geteuid(), getegid()) == -1)
 #else
-        if (!S_ISLNK(st.st_mode) &&
-            chown(path.c_str(), geteuid(), getegid()) == -1)
+            if (!fi.is_symlink() &&
+                chown(path.c_str(), geteuid(), getegid()) == -1)
 #endif
             throw SysError(format("changing owner of '%1%' to %2%")
                 % path % geteuid());
@@ -907,7 +916,13 @@ void LocalStore::registerValidPaths(const ValidPathInfos & infos)
        be fsync-ed.  So some may want to fsync them before registering
        the validity, at the expense of some speed of the path
        registering operation. */
-    if (settings.syncBeforeRegistering) sync();
+    if (settings.syncBeforeRegistering) {
+#ifdef _WIN32
+        // TODO WINDOWS
+#else
+        sync();
+#endif
+    }
 
     return retrySQLite<void>([&]() {
         auto state(_state.lock());

@@ -2237,7 +2237,7 @@ void DerivationGoal::startBuilder()
     //builderOut.create();
 
 #ifdef _WIN32
-    // TODO WINDOWS
+    std::string slaveName = "TODO WINDOWS";
 #else
     builderOut.readSide = posix_openpt(O_RDWR | O_NOCTTY);
     if (!builderOut.readSide)
@@ -2271,15 +2271,11 @@ void DerivationGoal::startBuilder()
 #else
     if (unlockpt(builderOut.readSide.get()))
         throw SysError("unlocking pseudoterminal");
-#endif
 
     builderOut.writeSide = open(slaveName.c_str(), O_RDWR | O_NOCTTY);
     if (!builderOut.writeSide)
         throw SysError("opening pseudoterminal slave");
 
-#ifdef _WIN32
-    // TODO WINDOWS
-#else
     // Put the pt into raw mode to prevent \n -> \r\n translation.
     struct termios term;
     if (tcgetattr(builderOut.writeSide.get(), &term))
@@ -3234,8 +3230,11 @@ void DerivationGoal::registerOutputs()
            that means that someone else can have interfered with the
            build.  Also, the output should be owned by the build
            user. */
-        if ((!S_ISLNK(st.st_mode) && (st.st_mode & (S_IWGRP | S_IWOTH))) ||
-            (buildUser && st.st_uid != buildUser->getUID()))
+        if ((!fi.is_symlink() && (fi.mode() & (S_IWGRP | S_IWOTH)))
+#if NIX_ALLOW_BUILD_USERS
+            || (buildUser && fi.owner() != buildUser->getUID())
+#else
+            )
             throw BuildError(format("suspicious ownership or permission on '%1%'; rejecting this build output") % path);
 #endif
 
@@ -3247,7 +3246,11 @@ void DerivationGoal::registerOutputs()
             /* Canonicalise first.  This ensures that the path we're
                rewriting doesn't contain a hard link to /etc/shadow or
                something like that. */
-            canonicalisePathMetaData(actualPath, buildUser ? buildUser->getUID() : -1, inodesSeen);
+            canonicalisePathMetaData(actualPath,
+#if NIX_ALLOW_BUILD_USERS
+                buildUser ? buildUser->getUID() :
+#endif
+                -1, inodesSeen);
 
             /* FIXME: this is in-memory. */
             StringSink sink;
@@ -3271,7 +3274,7 @@ void DerivationGoal::registerOutputs()
             if (!recursive) {
                 /* The output path should be a regular file without
                    execute permission. */
-                if (!S_ISREG(st.st_mode) || (st.st_mode & S_IXUSR) != 0)
+                if (!fi.is_regular() || fi.executable())
                     throw BuildError(
                         format("output path '%1%' should be a non-executable regular file") % path);
             }
@@ -3315,7 +3318,10 @@ void DerivationGoal::registerOutputs()
         /* Get rid of all weird permissions.  This also checks that
            all files are owned by the build user, if applicable. */
         canonicalisePathMetaData(actualPath,
-            buildUser && !rewritten ? buildUser->getUID() : -1, inodesSeen);
+#if NIX_ALLOW_BUILD_USERS
+            buildUser && !rewritten ? buildUser->getUID()
+#endif
+            : -1, inodesSeen);
 
         /* For this output path, find the references to other paths
            contained in it.  Compute the SHA-256 NAR hash at the same
@@ -3337,8 +3343,13 @@ void DerivationGoal::registerOutputs()
                         throw SysError(format("renaming '%1%' to '%2%'") % actualPath % dst);
 
                     handleDiffHook(
+#if NIX_ALLOW_BUILD_USERS
                         buildUser ? buildUser->getUID() : getuid(),
                         buildUser ? buildUser->getGID() : getgid(),
+#else
+                        getuid(),
+                        getgid(),
+#endif
                         path, dst, drvPath, tmpDir);
 
                     throw NotDeterministic(format("derivation '%1%' may not be deterministic: output '%2%' differs from '%3%'")
@@ -3406,8 +3417,13 @@ void DerivationGoal::registerOutputs()
                     : fmt("output '%1%' of '%2%' differs from previous round", i->second.path, drvPath);
 
                 handleDiffHook(
+#if NIX_ALLOW_BUILD_USERS
                     buildUser ? buildUser->getUID() : getuid(),
                     buildUser ? buildUser->getGID() : getgid(),
+#else
+                    getuid(),
+                    getgid(),
+#endif
                     prev, i->second.path, drvPath, tmpDir);
 
                 if (settings.enforceDeterminism)
@@ -3671,9 +3687,9 @@ void DerivationGoal::deleteTmpDir(bool force)
 
 void DerivationGoal::handleChildOutput(int fd, const string & data)
 {
-    if ((!hook && fd == builderOut.readSide.get()) ||
+    if ((!hook && fd == builderOut.readSide.get())
 #if NIX_ALLOW_BUILD_HOOK
-        (hook && fd == hook->builderOut.readSide.get())
+        || (hook && fd == hook->builderOut.readSide.get())
 #endif
         )
     {
