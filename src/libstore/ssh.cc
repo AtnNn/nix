@@ -81,7 +81,7 @@ Path SSHMaster::startMaster()
 
     auto state(state_.lock());
 
-    if (state->sshMaster != -1) return state->socketPath;
+    if (state->sshMaster.valid()) return state->socketPath;
 
     state->tmpDir = std::make_unique<AutoDelete>(createTempDir("", "nix", true, true, 0700));
 

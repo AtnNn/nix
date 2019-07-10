@@ -138,7 +138,7 @@ void initNix()
     /* Initialise the PRNG. */
     struct timeval tv;
     gettimeofday(&tv, 0);
-    srandom(tv.tv_usec);
+    srand(tv.tv_usec);
 
     /* On macOS, don't use the per-session TMPDIR (as set e.g. by
        sshd). This breaks build users because they don't have access
@@ -316,6 +316,7 @@ RunPager::RunPager()
     Pipe toPager;
     toPager.create();
 
+    // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
     pid = startProcess([&]() {
         if (dup2(toPager.readSide.get(), STDIN_FILENO) == -1)
             throw SysError("dupping stdin");
@@ -340,7 +341,7 @@ RunPager::RunPager()
 RunPager::~RunPager()
 {
     try {
-        if (pid != -1) {
+        if (pid.valid()) {
             std::cout.flush();
             close(STDOUT_FILENO);
             pid.wait();

@@ -5,6 +5,7 @@
 #include "worker-protocol.hh"
 #include "derivations.hh"
 #include "nar-info.hh"
+#include "permissions.hh"
 
 #include <iostream>
 #include <algorithm>
@@ -73,7 +74,7 @@ LocalStore::LocalStore(const Params & params)
 
     /* Optionally, create directories and set permissions for a
        multi-user install. */
-    if (getuid() == 0 && settings.buildUsersGroup != "") {
+    if (userIsRoot() && settings.buildUsersGroup != "") {
 
         Path perUserDir = profilesDir + "/per-user";
         createDirs(perUserDir);

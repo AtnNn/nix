@@ -36,7 +36,7 @@ public:
 
   uint64_t size() const {
 #ifdef _WIN32
-    return 0; // TODO WINDOWS
+    return 0; // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfilesize
 #else
     return st.st_size;
 #endif
@@ -68,7 +68,7 @@ public:
 
   bool is_executable() const {
 #ifdef _WIN32
-    return false; // TODO WINDOWS
+    return false; // TODO WINDOWS: perhaps check for .exe or .bat
 #else
     return st.st_mode & S_IXUSR;
 #endif
@@ -76,7 +76,7 @@ public:
 
   uint64_t size_on_disk() const {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex
     return size();
 #else
     return st.st_blocks * 512;
@@ -85,7 +85,7 @@ public:
 
   int hardlink_count() const {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/fileapi/ns-fileapi-_by_handle_file_information
     return 1;
 #else
     return st.st_nlink;
@@ -128,7 +128,7 @@ inline FileInfo lstat(Path const &path, bool allowMissing = false) {
 #endif
 
 Path readlink(Path const& link) {
-    
+    // TODO WINDOWS
 }
 
 #if _WIN32

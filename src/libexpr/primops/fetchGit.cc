@@ -8,6 +8,10 @@
 
 #include <sys/time.h>
 
+#ifdef _WIN32
+#include <sys/utime.h>
+#endif
+
 #include <regex>
 
 #include <nlohmann/json.hpp>
@@ -136,7 +140,7 @@ GitInfo exportGit(ref<Store> store, const std::string & uri,
 
 #ifdef _WIN32
         __utimbuf64 times;
-        times.acttime = now;
+        times.actime = now;
         times.modtime = now;
         _utime64(localRefFile.c_str(), &times);
 #else

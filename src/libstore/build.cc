@@ -38,10 +38,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <cstring>
-#include <termios.h>
+// TODO ATN #include <termios.h>
 
 // TODO WINDOWS #include <pwd.h>
-#include <grp.h>
+// TODO WINDOWS #include <grp.h>
 
 /* Includes required for chroot support. */
 #if __linux__
@@ -449,6 +449,9 @@ void Goal::trace(const FormatOrString & fs)
 /* Common initialisation performed in child processes. */
 static void commonChildInit(Pipe & logPipe)
 {
+#ifdef _WIN32
+    //TODO WINDOWS
+#else
     restoreSignals();
 
     /* Put the child in a separate session (and thus a separate
@@ -473,6 +476,7 @@ static void commonChildInit(Pipe & logPipe)
     if (dup2(fdDevNull, STDIN_FILENO) == -1)
         throw SysError("cannot dup null device into stdin");
     close(fdDevNull);
+#endif
 }
 
 void handleDiffHook(uid_t uid, uid_t gid, Path tryA, Path tryB, Path drvPath, Path tmpDir)
@@ -500,6 +504,7 @@ void handleDiffHook(uid_t uid, uid_t gid, Path tryA, Path tryB, Path drvPath, Pa
 
 //////////////////////////////////////////////////////////////////////
 
+#if NIX_ALLOW_BUILD_USERS
 
 class UserLock
 {
@@ -635,7 +640,7 @@ void UserLock::kill()
 {
     killUser(uid);
 }
-
+#endif
 
 //////////////////////////////////////////////////////////////////////
 
@@ -799,8 +804,10 @@ private:
     /* Outputs that are corrupt or not valid. */
     PathSet missingPaths;
 
+#if NIX_ALLOW_BUILD_USERS
     /* User selected for running the builder. */
     std::unique_ptr<UserLock> buildUser;
+#endif
 
     /* The process ID of the builder. */
     Process pid;
@@ -1089,7 +1096,10 @@ inline bool DerivationGoal::needsHashRewrite()
 
 void DerivationGoal::killChild()
 {
-    if (pid != -1) {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
+    if (pid.valid()) {
         worker.childTerminated(this);
 
         if (buildUser) {
@@ -1105,8 +1115,9 @@ void DerivationGoal::killChild()
         } else
             pid.kill();
 
-        assert(pid == -1);
+        assert(!pid.valid());
     }
+#endif
 
 #if NIX_ALLOW_BUILD_HOOK
     hook.reset();
@@ -1540,7 +1551,7 @@ void replaceValidPath(const Path & storePath, const Path tmpPath)
        tmpPath (the replacement), so we have to move it out of the
        way first.  We'd better not be interrupted here, because if
        we're repairing (say) Glibc, we end up with a broken system. */
-    Path oldPath = (format("%1%.old-%2%-%3%") % storePath % getpid() % random()).str();
+    Path oldPath = (format("%1%.old-%2%-%3%") % storePath % getpid() % rand()).str();
     if (pathExists(storePath))
         rename(storePath.c_str(), oldPath.c_str());
     if (rename(tmpPath.c_str(), storePath.c_str()) == -1)
@@ -1852,6 +1863,9 @@ PathSet DerivationGoal::exportReferences(PathSet storePaths)
 static std::once_flag dns_resolve_flag;
 
 static void preloadNSS() {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     /* builtin:fetchurl can trigger a DNS lookup, which with glibc can trigger a dynamic library load of
        one of the glibc NSS libraries in a sandboxed child, which will fail unless the library's already
        been loaded in the parent. So we force a lookup of an invalid domain to force the NSS machinery to
@@ -1863,6 +1877,7 @@ static void preloadNSS() {
             if (res) freeaddrinfo(res);
         }
     });
+#endif
 }
 
 void DerivationGoal::startBuilder()
@@ -1911,22 +1926,21 @@ void DerivationGoal::startBuilder()
         #endif
     }
 
+#if NIX_ALLOW_BUILD_USERS
     /* If `build-users-group' is not empty, then we have to build as
        one of the members of that group. */
     if (settings.buildUsersGroup != "" && getuid() == 0) {
-#if NIX_ALLOW_BUILD_USERS
         buildUser = std::make_unique<UserLock>();
 
         /* Make sure that no other processes are executing under this
            uid. */
         buildUser->kill();
-#else
         /* Don't know how to block the creation of setuid/setgid
            binaries on this platform. */
         throw Error("build users are not supported on this platform for security reasons");
-#endif
     }
-
+#endif
+    
     /* Create a temporary directory where the build will take
        place. */
     auto drvName = storePathToName(drvPath);

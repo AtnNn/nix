@@ -3,11 +3,12 @@
 TODO WINDOWS:
 
 - Symbolic links
-- Inodes, inode counts and hard links
+- Inodes and hard links
 - File locking
 - Users and permissions
 - Processes and pid
 - Unicode paths
 - Translate hardcoded paths
 - Runtime roots
-- Add mingw32 and ming64 to release.nix
+- Add mingw64 to release.nix
+- Update documentation

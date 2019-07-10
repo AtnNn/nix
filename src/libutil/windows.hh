@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO WINDOWS: this file is badly named and should be split
+
 #if _WIN32
 
 #define WIN32_LEAN_AND_MEAN

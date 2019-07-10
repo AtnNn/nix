@@ -248,6 +248,13 @@ public:
     void setKillSignal(int signal);
 #endif
     pid_t release();
+    bool valid() {
+#ifdef _WIN32
+        // TODO WINDOWS
+#else
+        return pid != -1;
+#endif
+    }
 };
 
 #if NIX_ALLOW_BUILD_USERS

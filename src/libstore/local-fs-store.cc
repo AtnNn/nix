@@ -42,6 +42,7 @@ struct LocalStoreAccessor : public FSAccessor
         case FileType::regular:
         case FileType::symlink:
         case FileType::directory:
+            ;
         }
 
         return {

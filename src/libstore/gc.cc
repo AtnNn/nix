@@ -865,17 +865,21 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
     //if (options.action == GCOptions::gcDeleteDead) vacuumDB();
 }
 
+uint64_t getAvail(Path const& path) {
+#ifdef _WIN32
+    // TODO WINDOWS
+    return 0x100000;
+#else
+    struct statvfs st;
+    if (statvfs(path, &st))
+        throw SysError("getting filesystem info about '%s'", realStoreDir);
+
+    return (uint64_t) st.f_bavail * st.f_bsize;
+#endif
+};
 
 void LocalStore::autoGC(bool sync)
 {
-    auto getAvail = [this]() {
-        struct statvfs st;
-        if (statvfs(realStoreDir.c_str(), &st))
-            throw SysError("getting filesystem info about '%s'", realStoreDir);
-
-        return (uint64_t) st.f_bavail * st.f_bsize;
-    };
-
     std::shared_future<void> future;
 
     {
@@ -891,7 +895,7 @@ void LocalStore::autoGC(bool sync)
 
         if (now < state->lastGCCheck + std::chrono::seconds(5)) return;
 
-        auto avail = getAvail();
+        auto avail = getAvail(realStoreDir);
 
         state->lastGCCheck = now;
 
@@ -925,7 +929,7 @@ void LocalStore::autoGC(bool sync)
 
                 collectGarbage(options, results);
 
-                _state.lock()->availAfterGC = getAvail();
+                _state.lock()->availAfterGC = getAvail(realStoreDir);
 
             } catch (...) {
                 // FIXME: we could propagate the exception to the

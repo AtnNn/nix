@@ -867,7 +867,7 @@ int Process::wait()
 
 void Process::setSeparatePG(bool separatePG)
 {
-#iifdef _WIN32
+#ifdef _WIN32
     // TODO WINOWS
 #else
     this->separatePG = separatePG;
@@ -955,21 +955,28 @@ void killUser(uid_t uid)
 static pid_t doFork(bool allowVfork, std::function<void()> fun) __attribute__((noinline));
 static pid_t doFork(bool allowVfork, std::function<void()> fun)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+    return -1;
+#else
 #ifdef __linux__
     pid_t pid = allowVfork ? vfork() : fork();
-#elif defined (_WIN32)
-    // TODO WINDOWS
 #else
     pid_t pid = fork();
 #endif
     if (pid != 0) return pid;
     fun();
     abort();
+#endif
 }
 
 
 Process startProcess(std::function<void()> fun, const ProcessOptions & options)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+    return Process(nullptr);
+#else
     auto wrapper = [&]() {
         if (!options.allowVfork)
             logger = makeDefaultLogger();
@@ -995,6 +1002,7 @@ Process startProcess(std::function<void()> fun, const ProcessOptions & options)
     if (pid == -1) throw SysError("unable to fork");
 
     return Process(pid);
+#endif
 }
 
 
@@ -1065,6 +1073,9 @@ void runProgram2(const RunOptions & options)
         if (source && dup2(in.readSide.get(), STDIN_FILENO) == -1)
             throw SysError("dupping stdin");
 
+#ifdef _WIN32
+        // TODO WINDOWS
+#else
         if (options.chdir && chdir((*options.chdir).c_str()) == -1)
             throw SysError("chdir failed");
         if (options.gid && setgid(*options.gid) == -1)
@@ -1074,7 +1085,8 @@ void runProgram2(const RunOptions & options)
             throw SysError("setgroups failed");
         if (options.uid && setuid(*options.uid) == -1)
             throw SysError("setuid failed");
-
+#endif
+        
         Strings args_(options.args);
         args_.push_front(options.program);
 
@@ -1152,20 +1164,28 @@ void closeMostFDs(const set<int> & exceptions)
     }
 #endif
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     int maxFD = 0;
     maxFD = sysconf(_SC_OPEN_MAX);
     for (int fd = 0; fd < maxFD; ++fd)
         if (!exceptions.count(fd))
             close(fd); /* ignore result */
+#endif
 }
 
 
 void closeOnExec(int fd)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     int prev;
     if ((prev = fcntl(fd, F_GETFD, 0)) == -1 ||
         fcntl(fd, F_SETFD, prev | FD_CLOEXEC) == -1)
         throw SysError("setting close-on-exec flag");
+#endif
 }
 
 
@@ -1270,6 +1290,10 @@ string replaceStrings(const std::string & s,
 
 string statusToString(int status)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+    return "has status code " + std::to_string(status);
+#else
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         if (WIFEXITED(status))
             return (format("failed with exit code %1%") % WEXITSTATUS(status)).str();
@@ -1285,12 +1309,18 @@ string statusToString(int status)
         else
             return "died abnormally";
     } else return "succeeded";
+#endif
 }
 
 
 bool statusOk(int status)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+    return status == 0;
+#else
     return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+#endif
 }
 
 
@@ -1459,12 +1489,16 @@ static Sync<std::pair<unsigned short, unsigned short>> windowSize{{0, 0}};
 
 static void updateWindowSize()
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == 0) {
         auto windowSize_(windowSize.lock());
         windowSize_->first = ws.ws_row;
         windowSize_->second = ws.ws_col;
     }
+#endif
 }
 
 
@@ -1473,6 +1507,7 @@ std::pair<unsigned short, unsigned short> getWindowSize()
     return *windowSize.lock();
 }
 
+#if NIX_HANDLE_INTERRUPTS
 
 static Sync<std::list<std::function<void()>>> _interruptCallbacks;
 
@@ -1556,5 +1591,7 @@ std::unique_ptr<InterruptCallback> createInterruptCallback(std::function<void()>
 
     return std::unique_ptr<InterruptCallback>(res.release());
 }
+
+#endif // NIX_HANDLE_INTERRUPTS
 
 }
