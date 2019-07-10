@@ -480,15 +480,14 @@ static void commonChildInit(Pipe & logPipe)
 #endif
 }
 
-void handleDiffHook(uid_t uid, uid_t gid, Path tryA, Path tryB, Path drvPath, Path tmpDir)
+void handleDiffHook(Identity const& id, Path tryA, Path tryB, Path drvPath, Path tmpDir)
 {
     auto diffHook = settings.diffHook;
     if (diffHook != "" && settings.runDiffHook) {
         try {
             RunOptions diffHookOptions(diffHook,{tryA, tryB, drvPath, tmpDir});
             diffHookOptions.searchPath = true;
-            diffHookOptions.uid = uid;
-            diffHookOptions.gid = gid;
+            diffHookOptions.id = id;
             diffHookOptions.chdir = "/";
 
             auto diffRes = runProgram(diffHookOptions);
@@ -3343,12 +3342,9 @@ void DerivationGoal::registerOutputs()
 
                     handleDiffHook(
 #if NIX_ALLOW_BUILD_USERS
-                        buildUser ? buildUser->getUID() : getuid(),
-                        buildUser ? buildUser->getGID() : getgid(),
-#else
-                        getuid(),
-                        getgid(),
+                        buildUser ? buildUser->getIdentity() :
 #endif
+                        currentIdentity(),
                         path, dst, drvPath, tmpDir);
 
                     throw NotDeterministic(format("derivation '%1%' may not be deterministic: output '%2%' differs from '%3%'")
@@ -3417,12 +3413,9 @@ void DerivationGoal::registerOutputs()
 
                 handleDiffHook(
 #if NIX_ALLOW_BUILD_USERS
-                    buildUser ? buildUser->getUID() : getuid(),
-                    buildUser ? buildUser->getGID() : getgid(),
-#else
-                    getuid(),
-                    getgid(),
+                    buildUser ? buildUser->getIdentity() :
 #endif
+                    currentIdentity(),
                     prev, i->second.path, drvPath, tmpDir);
 
                 if (settings.enforceDeterminism)
@@ -4417,7 +4410,11 @@ void Worker::run(const Goals & _topGoals)
 
 
 void Worker::waitForInput()
+
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     printMsg(lvlVomit, "waiting for children");
 
     /* Process output from the file descriptors attached to the
@@ -4553,6 +4550,7 @@ void Worker::waitForInput()
         }
         waitingForAWhile.clear();
     }
+#endif
 }
 
 

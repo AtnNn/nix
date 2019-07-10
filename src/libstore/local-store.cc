@@ -491,7 +491,7 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
         if (inodesSeen.find(Inode(fi.device(), fi.inode())) == inodesSeen.end())
             throw BuildError(format("invalid ownership on file '%1%'") % path);
         mode_t mode = fi.mode() & ~S_IFMT;
-        assert(fi.is_symlink() || (fi.owner() == geteuid() && (mode == 0444 || mode == 0555) && fi.modification_time() == mtimeStore));
+        assert(fi.is_symlink() || (fi.owner() == currentUser() && (mode == 0444 || mode == 0555) && fi.modification_time() == mtimeStore));
         return;
     }
 
@@ -506,15 +506,15 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
        writable.  The only exception is top-level paths in the Nix
        store (since that directory is group-writable for the Nix build
        users group); we check for this case below. */
-    if (fi.owner() != geteuid()) {
+    if (fi.owner() != currentUser()) {
 #if HAVE_LCHOWN
         if (lchown(path.c_str(), geteuid(), getegid()) == -1)
-#else
-            if (!fi.is_symlink() &&
-                chown(path.c_str(), geteuid(), getegid()) == -1)
-#endif
             throw SysError(format("changing owner of '%1%' to %2%")
                 % path % geteuid());
+#else
+        if (!fi.is_symlink())
+            changeOwner(path, currentIdentity());
+#endif
     }
 
     if (fi.is_directory()) {
@@ -533,7 +533,7 @@ void canonicalisePathMetaData(const Path & path, uid_t fromUid, InodesSeen & ino
        be a symlink, since we can't change its ownership. */
     FileInfo fi = lstat(path);
 
-    if (fi.owner() != geteuid()) {
+    if (fi.owner() != currentUser()) {
         assert(fi.is_symlink());
         throw Error(format("wrong ownership of top-level store path '%1%'") % path);
     }

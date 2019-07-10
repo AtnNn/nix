@@ -151,6 +151,9 @@ bool PathLocks::lockPaths(const PathSet & _paths,
 
                 debug(format("lock acquired on '%1%'") % lockPath);
 
+#ifdef _WIN32
+                // TODO WINDOWS
+#else
                 /* Check that the lock file hasn't become stale (i.e.,
                    hasn't been unlinked). */
                 FileInfo fi = fstat(fd);
@@ -162,6 +165,7 @@ bool PathLocks::lockPaths(const PathSet & _paths,
                     debug(format("open lock file '%1%' has become stale") % lockPath);
                 else
                     break;
+#endif
             }
 
             /* Use borrow so that the descriptor isn't closed. */

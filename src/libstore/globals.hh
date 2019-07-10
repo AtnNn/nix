@@ -14,6 +14,7 @@
 #define NIX_HANDLE_INTERRUPTS !defined(_WIN32)
 #define NIX_ALLOW_BUILD_HOOK !defined(_WIN32)
 #define NIX_ALLOW_REMOTE_STORE !defined(_WIN32)
+#define NIX_ALLOW_SANDBOX !defined(_WIN32)
 
 namespace nix {
 

@@ -3,6 +3,7 @@
 #include "types.hh"
 #include "logging.hh"
 #include "windows.hh"
+#include "permissions.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -286,8 +287,7 @@ string runProgram(Path program, bool searchPath = false,
 
 struct RunOptions
 {
-    std::optional<uid_t> uid;
-    std::optional<uid_t> gid;
+    std::optional<Identity> id;
     std::optional<Path> chdir;
     Path program;
     bool searchPath = true;
