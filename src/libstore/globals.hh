@@ -12,6 +12,7 @@
 // TODO WINDOWS
 #define NIX_ALLOW_BUILD_USERS defined(__linux__) || defined(__APPLE__)
 #define NIX_HANDLE_INTERRUPTS !defined(_WIN32)
+#define NIX_ALLOW_BUILD_HOOK !defined(_WIN32)
 
 namespace nix {
 

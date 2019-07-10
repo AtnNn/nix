@@ -791,35 +791,37 @@ Process::Process()
 {
 }
 
-
+#ifdef _WIN32
+// TODO WINDOWS
+#else
 Process::Process(pid_t pid)
     : pid(pid)
 {
 }
-
+#endif
 
 Process::~Process()
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     if (pid != -1) kill();
+#endif
 }
 
-
-void Process::operator =(pid_t pid)
-{
-    if (this->pid != -1 && this->pid != pid) kill();
-    this->pid = pid;
-    // TODO WINDOWS killSignal = SIGKILL; // reset signal to default
-}
-
-
-Process::operator pid_t()
+#ifndef _WIN32
+pid_t Process::pid()
 {
     return pid;
 }
+#endif
 
 
 int Process::kill()
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     assert(pid != -1);
 
     debug(format("killing process %1%") % pid);
@@ -838,11 +840,15 @@ int Process::kill()
     }
 
     return wait();
+#endif
 }
 
 
 int Process::wait()
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     assert(pid != -1);
     while (1) {
         int status;
@@ -855,26 +861,36 @@ int Process::wait()
             throw SysError("cannot get child exit status");
         checkInterrupt();
     }
+#endif
 }
 
 
 void Process::setSeparatePG(bool separatePG)
 {
+#iifdef _WIN32
+    // TODO WINOWS
+#else
     this->separatePG = separatePG;
+#endif
 }
 
-
+#ifndef _WIN32
 void Process::setKillSignal(int signal)
 {
     this->killSignal = signal;
 }
+#endif
 
 
 pid_t Process::release()
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     pid_t p = pid;
     pid = -1;
     return p;
+#endif
 }
 
 
@@ -893,9 +909,12 @@ void killUser(uid_t uid)
 
     Process pid = startProcess([&]() {
 
+#ifdef _WIN32
+                                   // TODO WINDOWS
+#else
         if (setuid(uid) == -1)
             throw SysError("setting uid");
-
+#endif
         while (true) {
 #ifdef __APPLE__
             /* OSX's kill syscall takes a third parameter that, among
@@ -904,6 +923,8 @@ void killUser(uid_t uid)
                which means "follow POSIX", which we don't want here
                  */
             if (syscall(SYS_kill, -1, SIGKILL, false) == 0) break;
+#elif defined(_WIN32)
+            // TODO WINDOWS
 #else
             if (kill(-1, SIGKILL) == 0) break;
 #endif
@@ -936,6 +957,8 @@ static pid_t doFork(bool allowVfork, std::function<void()> fun)
 {
 #ifdef __linux__
     pid_t pid = allowVfork ? vfork() : fork();
+#elif defined (_WIN32)
+    // TODO WINDOWS
 #else
     pid_t pid = fork();
 #endif

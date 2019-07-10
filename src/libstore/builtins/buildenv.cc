@@ -69,9 +69,9 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
                 if (dstFi.is_directory()) {
                     createLinks(srcFile, dstFile, priority);
                     continue;
-                } else if (dstFi.is_synlink()) {
+                } else if (dstFi.is_symlink()) {
                     auto target = canonPath(dstFile, true);
-                    if (!lstat(target).is_directory()))
+                    if (!lstat(target).is_directory())
                         throw Error("collision between '%1%' and non-directory '%2%'", srcFile, target);
                     if (unlink(dstFile.c_str()) == -1)
                         throw SysError(format("unlinking '%1%'") % dstFile);
@@ -100,7 +100,7 @@ static void createLinks(const Path & srcDir, const Path & dstDir, int priority)
                         continue;
                     if (unlink(dstFile.c_str()) == -1)
                         throw SysError(format("unlinking '%1%'") % dstFile);
-                } else if (dstFi.is_directory()))
+                } else if (dstFi.is_directory())
                     throw Error("collision between non-directory '%1%' and directory '%2%'", srcFile, dstFile);
             }
         }

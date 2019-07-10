@@ -300,7 +300,7 @@ void LocalStore::findRoots(const Path & path, FileType type, Roots & roots)
                     }
                 } else {
                     FileInfo fi2 = lstat(target);
-                    if (!target.is_symlink()) return;
+                    if (!fi2.is_symlink()) return;
                     Path target2 = readLink(target);
                     if (isInStore(target2)) foundRoot(target, target2);
                 }
@@ -692,10 +692,10 @@ void LocalStore::removeUnusedLinks(const GCState & state)
 
         FileInfo fi = lstat(path);
 
-        if (st.st_nlink != 1) { // TODO WINDOWS: st_nlink?
-            unsigned long long size = st.st_blocks * 512ULL;
+        if (fi.hardlink_count() != 1) {
+            unsigned long long size = fi.size_on_disk();
             actualSize += size;
-            unsharedSize += (st.st_nlink - 1) * size;
+            unsharedSize += (fi.hardlink_count() - 1) * size;
             continue;
         }
 
@@ -704,13 +704,11 @@ void LocalStore::removeUnusedLinks(const GCState & state)
         if (unlink(path.c_str()) == -1)
             throw SysError(format("deleting '%1%'") % path);
 
-        state.results.bytesFreed += st.st_blocks * 512ULL;
+        state.results.bytesFreed += fi.size_on_disk();
     }
 
-    struct stat st;
-    if (stat(linksDir.c_str(), &st) == -1)
-        throw SysError(format("statting '%1%'") % linksDir);
-    long long overhead = st.st_blocks * 512ULL;
+    FileInfo fi = stat(linksDir);
+    long long overhead = fi.size_on_disk();
 
     printInfo(format("note: currently hard linking saves %.2f MiB")
         % ((unsharedSize - actualSize - overhead) / (1024.0 * 1024.0)));

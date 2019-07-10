@@ -4,7 +4,7 @@
 #include "store-api.hh"
 #include "legacy.hh"
 #include "windows.hh"
-#include "fileinfo.hh"
+#include "pathinfo.hh"
 
 #include <fcntl.h>
 #include <regex>

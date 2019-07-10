@@ -4,7 +4,7 @@
 #include "store-api.hh"
 #include "pathlocks.hh"
 #include "hash.hh"
-#include "fileinfo.hh"
+#include "pathinfo.hh"
 
 #include <sys/time.h>
 

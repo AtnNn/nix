@@ -34,7 +34,7 @@
 // TODO WINDOWS #include <sys/resource.h>
 // TODO WINDOWS #include <sys/socket.h>
 #include <fcntl.h>
-#include <netdb.h>
+// TODO WINDOWS #include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
 #include <cstring>
@@ -78,7 +78,10 @@ static string pathNullDevice = "/dev/null";
 
 /* Forward definition. */
 class Worker;
+
+#if NIX_ALLOW_BUILD_HOOK
 struct HookInstance;
+#endif
 
 
 /* A pointer to a goal. */
@@ -274,7 +277,9 @@ public:
 
     LocalStore & store;
 
+#if NIX_ALLOW_BUILD_HOOK
     std::unique_ptr<HookInstance> hook;
+#endif
 
     uint64_t expectedBuilds = 0;
     uint64_t doneBuilds = 0;
@@ -290,9 +295,11 @@ public:
     uint64_t expectedNarSize = 0;
     uint64_t doneNarSize = 0;
 
+#if NIX_ALLOW_BUILD_HOOK
     /* Whether to ask the build hook if it can build a derivation. If
        it answers with "decline-permanently", we don't try again. */
     bool tryBuildHook = true;
+#endif
 
     Worker(LocalStore & store);
     ~Worker();
@@ -632,7 +639,7 @@ void UserLock::kill()
 
 //////////////////////////////////////////////////////////////////////
 
-
+#if NIX_ALLOW_BUILD_HOOK
 struct HookInstance
 {
     /* Pipes for talking to the build hook. */
@@ -722,7 +729,7 @@ HookInstance::~HookInstance()
         ignoreException();
     }
 }
-
+#endif
 
 //////////////////////////////////////////////////////////////////////
 
@@ -825,9 +832,13 @@ private:
     /* Pipe for synchronising updates to the builder user namespace. */
     Pipe userNamespaceSync;
 
+#if NIX_ALLOW_BUILD_HOOK
     /* The build hook. */
     std::unique_ptr<HookInstance> hook;
-
+#else
+    const bool hook = false;
+#endif
+    
     /* Whether we're currently doing a chroot build. */
     bool useChroot = false;
 
@@ -1097,7 +1108,9 @@ void DerivationGoal::killChild()
         assert(pid == -1);
     }
 
+#if NIX_ALLOW_BUILD_HOOK
     hook.reset();
+#endif
 }
 
 
@@ -1467,6 +1480,7 @@ void DerivationGoal::tryToBuild()
 
     /* Is the build hook willing to accept this job? */
     if (!buildLocally) {
+#if NIX_ALLOW_BUILD_HOOK
         switch (tryBuildHook()) {
             case rpAccept:
                 /* Yes, it has started doing so.  Wait until we get
@@ -1485,6 +1499,7 @@ void DerivationGoal::tryToBuild()
                 /* We should do it ourselves. */
                 break;
         }
+#endif
     }
 
     /* Make sure that we are allowed to start a build.  If this
@@ -1550,7 +1565,11 @@ void DerivationGoal::buildDone()
        to have terminated.  In fact, the builder could also have
        simply have closed its end of the pipe, so just to be sure,
        kill it. */
-    int status = hook ? hook->pid.kill() : pid.kill();
+    int status =
+#if NIX_ALLOW_BUILD_HOOK
+        hook ? hook->pid.kill() :
+#endif
+        pid.kill();
 
     debug(format("builder process for '%1%' finished") % drvPath);
 
@@ -1562,8 +1581,10 @@ void DerivationGoal::buildDone()
 
     /* Close the read side of the logger pipe. */
     if (hook) {
+#if NIX_ALLOW_BUILD_HOOK
         hook->builderOut.readSide = -1;
         hook->fromHook.readSide = -1;
+#endif
     } else
         builderOut.readSide = -1;
 
@@ -1663,13 +1684,15 @@ void DerivationGoal::buildDone()
         outputLocks.unlock();
 
         BuildResult::Status st = BuildResult::MiscFailure;
-
+#if NIX_ALLOW_BUILD_HOOK
         if (hook && WIFEXITED(status) && WEXITSTATUS(status) == 101)
             st = BuildResult::TimedOut;
 
         else if (hook && (!WIFEXITED(status) || WEXITSTATUS(status) != 100)) {
         }
-
+#else
+        if (false) { }
+#endif
         else {
             st =
                 dynamic_cast<NotDeterministic*>(&e) ? BuildResult::NotDeterministic :
@@ -1688,6 +1711,9 @@ void DerivationGoal::buildDone()
 
 HookReply DerivationGoal::tryBuildHook()
 {
+#if !NIX_ALLOW_BUILD_HOOK
+    return rpDecline;
+#else
     if (!worker.tryBuildHook || !useDerivation) return rpDecline;
 
     if (!worker.hook)
@@ -1769,6 +1795,7 @@ HookReply DerivationGoal::tryBuildHook()
     worker.childStarted(shared_from_this(), fds, false, false);
 
     return rpAccept;
+#endif
 }
 
 
@@ -3595,8 +3622,11 @@ void DerivationGoal::deleteTmpDir(bool force)
 
 void DerivationGoal::handleChildOutput(int fd, const string & data)
 {
-    if ((hook && fd == hook->builderOut.readSide.get()) ||
-        (!hook && fd == builderOut.readSide.get()))
+    if ((!hook && fd == builderOut.readSide.get()) ||
+#if NIX_ALLOW_BUILD_HOOK
+        (hook && fd == hook->builderOut.readSide.get())
+#endif
+        )
     {
         logSize += data.size();
         if (settings.maxLogSize && logSize > settings.maxLogSize) {
@@ -3621,7 +3651,8 @@ void DerivationGoal::handleChildOutput(int fd, const string & data)
 
         if (logSink) (*logSink)(data);
     }
-
+    
+#if NIX_ALLOW_BUILD_HOOK
     if (hook && fd == hook->fromHook.readSide.get()) {
         for (auto c : data)
             if (c == '\n') {
@@ -3630,6 +3661,7 @@ void DerivationGoal::handleChildOutput(int fd, const string & data)
             } else
                 currentHookLine += c;
     }
+#endif
 }
 
 
