@@ -908,7 +908,7 @@ void LocalStore::autoGC(bool sync)
         std::promise<void> promise;
         future = state->gcFuture = promise.get_future().share();
 
-        std::thread([promise{std::move(promise)}, this, avail, getAvail]() mutable {
+        std::thread([promise{std::move(promise)}, this, avail]() mutable {
 
             try {
 

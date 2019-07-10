@@ -241,7 +241,7 @@ Path readLink(const Path & path)
 
 bool isLink(const Path & path)
 {
-    lstat(path).is_symlink();
+    return lstat(path).is_symlink();
 }
 
 
@@ -624,11 +624,12 @@ string drainFD(int fd, bool block)
 
 void drainFD(int fd, Sink & sink, bool block)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
+
     int saved;
 
-#ifndef _WIN32
-    // TODO WINDOWS
-    
     Finally finally([&]() {
         if (!block) {
             if (fcntl(fd, F_SETFL, saved) == -1)
@@ -821,6 +822,7 @@ int Process::kill()
 {
 #ifdef _WIN32
     // TODO WINDOWS
+    return -1;
 #else
     assert(pid != -1);
 
@@ -848,6 +850,7 @@ int Process::wait()
 {
 #ifdef _WIN32
     // TODO WINDOWS
+    return -1;
 #else
     assert(pid != -1);
     while (1) {
@@ -886,6 +889,7 @@ pid_t Process::release()
 {
 #ifdef _WIN32
     // TODO WINDOWS
+    return -1;
 #else
     pid_t p = pid;
     pid = -1;
@@ -1207,6 +1211,7 @@ void _interrupted()
     /* Block user interrupts while an exception is being handled.
        Throwing an exception while another exception is being handled
        kills the program! */
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     if (!interruptThrown && !std::uncaught_exception()) {
         interruptThrown = true;
         throw Interrupted("interrupted by the user");

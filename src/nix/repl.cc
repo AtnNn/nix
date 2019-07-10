@@ -204,6 +204,7 @@ static int listPossibleCallback(char *s, char ***avp) {
   return ac;
 }
 
+#if NIX_HANDLE_INTERRUPTS
 namespace {
     // Used to communicate to NixRepl::getLine whether a signal occurred in ::readline.
     volatile sig_atomic_t g_signal_received = 0;
@@ -212,6 +213,7 @@ namespace {
         g_signal_received = signo;
     }
 }
+#endif
 
 void NixRepl::mainLoop(const std::vector<std::string> & files)
 {

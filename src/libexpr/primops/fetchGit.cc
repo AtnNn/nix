@@ -43,7 +43,7 @@ GitInfo exportGit(ref<Store> store, const std::string & uri,
 
         try {
             runProgram("git", true, { "-C", uri, "diff-index", "--quiet", "HEAD", "--" });
-        } catch (ExecError e) {
+        } catch (ExecError const& e) {
 #if !_WIN32 // TODO WINDOWS
             if (!WIFEXITED(e.status) || WEXITSTATUS(e.status) != 1) throw;
 #endif

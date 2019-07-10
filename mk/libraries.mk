@@ -79,7 +79,7 @@ define build-library
     else
       ifneq ($(OS), Darwin)
         ifneq (CYGWIN,$(findstring CYGWIN,$(OS)))
-          $(1)_LDFLAGS += -Wl,-z,defs
+          $(1)_LDFLAGS += -Wl,--no-undefined
         endif
       endif
     endif

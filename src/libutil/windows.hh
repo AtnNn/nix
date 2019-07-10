@@ -48,7 +48,7 @@ std::string get_current_user_name() {
     throw nix::SysError(boost::format("GetUserNameA error: %1%") % GetLastError());
 }
 
-int setenv(char const* name, char const* val, int overwrite) {
+inline int setenv(char const* name, char const* val, int overwrite) {
     if (!overwrite) {
         bool res = GetEnvironmentVariableA(name, nullptr, 0);
         if (!res && GetLastError() != ERROR_ENVVAR_NOT_FOUND) {
@@ -62,7 +62,7 @@ int setenv(char const* name, char const* val, int overwrite) {
     return 0;
 }
 
-int mkdir(char const* path, mode_t) {
+inline int mkdir(char const* path, mode_t) {
     // TODO WINDOWS: mode
     if (!CreateDirectoryA(path, nullptr)) {
         errno = EINVAL;
@@ -71,7 +71,7 @@ int mkdir(char const* path, mode_t) {
     return 0;
 }
 
-int futimens(int fd, std::nullptr_t) {
+inline int futimens(int fd, std::nullptr_t) {
     SYSTEMTIME stime;
     GetSystemTime(&stime);
     FILETIME ftime;
@@ -87,7 +87,7 @@ int futimens(int fd, std::nullptr_t) {
     return 0;
 }
 
-void* localtime_r(time_t const* in, tm* out) {
+inline void* localtime_r(time_t const* in, tm* out) {
     errno_t res = localtime_s(out, in);
     if (!res) {
         errno = res;
@@ -103,7 +103,7 @@ void* localtime_r(time_t const* in, tm* out) {
 #define NIX_HANDLE_INTERRUPTS 1
 #define NIX_SUPPORT_OLD_DEFEXPR 1
 
-std::string get_current_user_name() {
+inline std::string get_current_user_name() {
     auto pw = getpwuid(geteuid());
     return pw ? pw->pw_name : getEnv("USER", "");
 }
