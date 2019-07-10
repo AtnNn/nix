@@ -1,6 +1,7 @@
 #include "util.hh"
 #include "local-store.hh"
 #include "globals.hh"
+#include "pathinfo.hh"
 
 #include <cstdlib>
 #include <cstring>

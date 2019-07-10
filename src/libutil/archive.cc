@@ -14,6 +14,7 @@
 #include "archive.hh"
 #include "util.hh"
 #include "config.hh"
+#include "pathinfo.hh"
 
 namespace nix {
 

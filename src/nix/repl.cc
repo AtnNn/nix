@@ -430,6 +430,7 @@ static int runProgram(const string & program, const Strings & args)
     args2.push_front(program);
 
 #if _WIN32
+    // TODO WINDOWS: test this. maybe move into Process
     std::string command_line = argvToWindowsCommandLine(args2);
     std::vector<char> command_line_nc(command_line.c_str(), command_line.c_str() + command_line.size() + 1);
     PROCESS_INFORMATION pi;
@@ -447,7 +448,7 @@ static int runProgram(const string & program, const Strings & args)
     }
     return exit_code;
 #else
-    Pid pid;
+    Process pid;
     pid = fork();
     if (pid == -1) throw SysError("forking");
     if (pid == 0) {

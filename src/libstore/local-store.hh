@@ -265,7 +265,7 @@ private:
 
     int openGCLock(LockType lockType);
 
-    void findRoots(const Path & path, unsigned char type, Roots & roots);
+    void findRoots(const Path & path, FileType type, Roots & roots);
 
     void findRootsNoTemp(Roots & roots, bool censor);
 

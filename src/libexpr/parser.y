@@ -17,6 +17,7 @@
 #define BISON_HEADER
 
 #include "util.hh"
+#include "pathinfo.hh"
 
 #include "nixexpr.hh"
 #include "eval.hh"

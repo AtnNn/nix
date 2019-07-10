@@ -3,6 +3,7 @@
 #include "download.hh"
 #include "store-api.hh"
 #include "pathlocks.hh"
+#include "fileinfo.hh"
 
 #include <sys/time.h>
 

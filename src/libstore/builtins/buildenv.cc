@@ -1,4 +1,5 @@
 #include "builtins.hh"
+#include "pathinfo.hh"
 
 #include <sys/stat.h>
 #include <sys/types.h>

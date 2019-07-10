@@ -4,6 +4,7 @@
 #include "sync.hh"
 #include "finally.hh"
 #include "serialise.hh"
+#include "pathinfo.hh"
 
 #include <cctype>
 #include <cerrno>
@@ -283,14 +284,24 @@ FileType getFileType(const Path & path)
 
 string readFile(int fd)
 {
+    size_t size;
+#ifdef _WIN32
+    HANDLE handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+    size = GetFileSize(handle, nullptr);
+    if (size == INVALID_FILE_SIZE) {
+        throw SysError("statting file");
+    }
+#else
     struct stat st;
     if (fstat(fd, &st) == -1)
         throw SysError("statting file");
+    size = st.st_size;
+#endif
+    
+    std::vector<unsigned char> buf(size);
+    readFull(fd, buf.data(), size);
 
-    std::vector<unsigned char> buf(st.st_size);
-    readFull(fd, buf.data(), st.st_size);
-
-    return string((char *) buf.data(), st.st_size);
+    return string((char *) buf.data(), size);
 }
 
 
@@ -615,6 +626,9 @@ void drainFD(int fd, Sink & sink, bool block)
 {
     int saved;
 
+#ifndef _WIN32
+    // TODO WINDOWS
+    
     Finally finally([&]() {
         if (!block) {
             if (fcntl(fd, F_SETFL, saved) == -1)
@@ -627,6 +641,7 @@ void drainFD(int fd, Sink & sink, bool block)
         if (fcntl(fd, F_SETFL, saved | O_NONBLOCK) == -1)
             throw SysError("making file descriptor non-blocking");
     }
+#endif
 
     std::vector<unsigned char> buf(64 * 1024);
     while (1) {
@@ -752,7 +767,11 @@ int AutoCloseFD::release()
 void Pipe::create()
 {
     int fds[2];
-#if HAVE_PIPE2
+#if _WIN32
+    if (_pipe(fds, 256, O_BINARY | _O_NOINHERIT) == -1) {
+        throw SysError("creating pipe");
+    }
+#elif HAVE_PIPE2
     if (pipe2(fds, O_CLOEXEC) != 0) throw SysError("creating pipe");
 #else
     if (pipe(fds) != 0) throw SysError("creating pipe");
@@ -768,24 +787,24 @@ void Pipe::create()
 //////////////////////////////////////////////////////////////////////
 
 
-Pid::Pid()
+Process::Process()
 {
 }
 
 
-Pid::Pid(pid_t pid)
+Process::Process(pid_t pid)
     : pid(pid)
 {
 }
 
 
-Pid::~Pid()
+Process::~Process()
 {
     if (pid != -1) kill();
 }
 
 
-void Pid::operator =(pid_t pid)
+void Process::operator =(pid_t pid)
 {
     if (this->pid != -1 && this->pid != pid) kill();
     this->pid = pid;
@@ -793,13 +812,13 @@ void Pid::operator =(pid_t pid)
 }
 
 
-Pid::operator pid_t()
+Process::operator pid_t()
 {
     return pid;
 }
 
 
-int Pid::kill()
+int Process::kill()
 {
     assert(pid != -1);
 
@@ -822,7 +841,7 @@ int Pid::kill()
 }
 
 
-int Pid::wait()
+int Process::wait()
 {
     assert(pid != -1);
     while (1) {
@@ -839,19 +858,19 @@ int Pid::wait()
 }
 
 
-void Pid::setSeparatePG(bool separatePG)
+void Process::setSeparatePG(bool separatePG)
 {
     this->separatePG = separatePG;
 }
 
 
-void Pid::setKillSignal(int signal)
+void Process::setKillSignal(int signal)
 {
     this->killSignal = signal;
 }
 
 
-pid_t Pid::release()
+pid_t Process::release()
 {
     pid_t p = pid;
     pid = -1;
@@ -872,7 +891,7 @@ void killUser(uid_t uid)
     ProcessOptions options;
     options.allowVfork = false;
 
-    Pid pid = startProcess([&]() {
+    Process pid = startProcess([&]() {
 
         if (setuid(uid) == -1)
             throw SysError("setting uid");
@@ -926,7 +945,7 @@ static pid_t doFork(bool allowVfork, std::function<void()> fun)
 }
 
 
-pid_t startProcess(std::function<void()> fun, const ProcessOptions & options)
+Process startProcess(std::function<void()> fun, const ProcessOptions & options)
 {
     auto wrapper = [&]() {
         if (!options.allowVfork)
@@ -952,7 +971,7 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions & options)
     pid_t pid = doFork(options.allowVfork, wrapper);
     if (pid == -1) throw SysError("unable to fork");
 
-    return pid;
+    return Process(pid);
 }
 
 
@@ -1017,7 +1036,7 @@ void runProgram2(const RunOptions & options)
     if (source) in.create();
 
     /* Fork. */
-    Pid pid = startProcess([&]() {
+    Process pid = startProcess([&]() {
         if (options.standardOut && dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
             throw SysError("dupping stdout");
         if (source && dup2(in.readSide.get(), STDIN_FILENO) == -1)

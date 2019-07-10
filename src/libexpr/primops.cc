@@ -12,6 +12,7 @@
 #include "value-to-json.hh"
 #include "value-to-xml.hh"
 #include "primops.hh"
+#include "fileinfo.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>

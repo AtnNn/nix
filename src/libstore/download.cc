@@ -427,7 +427,7 @@ struct CurlDownloader : public Downloader
         #endif
 
         wakeupPipe.create();
-        fcntl(wakeupPipe.readSide.get(), F_SETFL, O_NONBLOCK);
+        wakeupPipe.setReadNonBlocking();
 
         workerThread = std::thread([&]() { workerThreadEntry(); });
     }

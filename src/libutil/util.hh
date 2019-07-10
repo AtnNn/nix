@@ -3,7 +3,6 @@
 #include "types.hh"
 #include "logging.hh"
 #include "windows.hh"
-#include "pathinfo.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -73,6 +72,8 @@ bool pathExists(const Path & path);
 Path readLink(const Path & path);
 
 bool isLink(const Path & path);
+
+enum class FileType { missing, regular, directory, symlink, other };
 
 /* Read the contents of a directory.  The entries `.' and `..' are
    removed. */
@@ -200,6 +201,13 @@ class Pipe
 public:
     AutoCloseFD readSide, writeSide;
     void create();
+    void setReadNonBlocking() {
+#if _WIN32
+        // TODO WINDOWS
+#else
+        fcntl(wakeupPipe.readSide.get(), F_SETFL, O_NONBLOCK);
+#endif
+    }
 };
 
 
@@ -213,26 +221,36 @@ struct DIRDeleter
 typedef std::unique_ptr<DIR, DIRDeleter> AutoCloseDir;
 
 
-class Pid
+class Process
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     pid_t pid = -1;
     bool separatePG = false;
-    // TODO WINDOWS int killSignal = SIGKILL;
+    int killSignal = SIGKILL;
+#endif
+
 public:
-    Pid();
-    Pid(pid_t pid);
-    ~Pid();
-    void operator =(pid_t pid);
-    operator pid_t();
+    Process();
+#ifdef _WIN32
+    Process(HANDLE);
+#else
+    Process(pid_t pid);
+#endif
+    ~Process();
+    pid_t pid();
     int kill();
     int wait();
 
     void setSeparatePG(bool separatePG);
+#ifndef _WIN32
     void setKillSignal(int signal);
+#endif
     pid_t release();
 };
 
-#ifdef NIX_ALLOW_BUILD_USERS
+#if NIX_ALLOW_BUILD_USERS
 /* Kill all processes running under the specified uid by sending them
    a SIGKILL. */
 void killUser(uid_t uid);
@@ -249,7 +267,7 @@ struct ProcessOptions
     bool allowVfork = true;
 };
 
-pid_t startProcess(std::function<void()> fun, const ProcessOptions & options = ProcessOptions());
+Process startProcess(std::function<void()> fun, const ProcessOptions & options = ProcessOptions());
 
 
 /* Run a program and return its stdout in a string (i.e., like the
@@ -291,6 +309,15 @@ public:
     ExecError(int status, Args... args)
         : Error(args...), status(status)
     { }
+
+    bool exited() {
+#if _WIN32
+        // TODO WINDOWS
+        return true;
+#else
+        return WIFEXITED(status);
+#endif
+    }
 };
 
 /* Convert a list of strings to a null-terminated vector of char

@@ -10,7 +10,7 @@ namespace nix {
 
 
 class Pipe;
-class Pid;
+class Process;
 struct FdSink;
 struct FdSource;
 template<typename T> class Pool;

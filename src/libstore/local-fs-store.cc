@@ -4,6 +4,7 @@
 #include "globals.hh"
 #include "compression.hh"
 #include "derivations.hh"
+#include "pathinfo.hh"
 
 namespace nix {
 

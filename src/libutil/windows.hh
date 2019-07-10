@@ -23,9 +23,6 @@
 using uid_t = int;
 using gid_t = int;
 
-#define NIX_HANDLE_INTERRUPTS 0
-#define NIX_SUPPORT_OLD_DEFEXPR 0
-
 const int O_CLOEXEC = 0;
 
 

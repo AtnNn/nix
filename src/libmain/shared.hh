@@ -97,7 +97,7 @@ public:
     ~RunPager();
 
 private:
-    Pid pid;
+    Process pid;
 };
 
 extern volatile ::sig_atomic_t blockInt;

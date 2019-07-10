@@ -191,7 +191,7 @@ void handleSQLiteBusy(const SQLiteBusy & e)
     checkInterrupt();
     struct timespec t;
     t.tv_sec = 0;
-    t.tv_nsec = (random() % 100) * 1000 * 1000; /* <= 0.1s */
+    t.tv_nsec = (rand() % 100) * 1000 * 1000; /* <= 0.1s */
     nanosleep(&t, 0);
 }
 

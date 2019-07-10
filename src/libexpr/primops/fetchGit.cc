@@ -4,6 +4,7 @@
 #include "store-api.hh"
 #include "pathlocks.hh"
 #include "hash.hh"
+#include "fileinfo.hh"
 
 #include <sys/time.h>
 
@@ -104,6 +105,7 @@ GitInfo exportGit(ref<Store> store, const std::string & uri,
 
     bool doFetch;
     time_t now = time(0);
+
     /* If a rev was specified, we need to fetch if it's not in the
        repo. */
     if (rev != "") {
@@ -111,7 +113,7 @@ GitInfo exportGit(ref<Store> store, const std::string & uri,
             runProgram("git", true, { "-C", cacheDir, "cat-file", "-e", rev });
             doFetch = false;
         } catch (ExecError & e) {
-            if (WIFEXITED(e.status)) {
+            if (e.exited()) {
                 doFetch = true;
             } else {
                 throw;
@@ -132,6 +134,12 @@ GitInfo exportGit(ref<Store> store, const std::string & uri,
         // we're using --quiet for now. Should process its stderr.
         runProgram("git", true, { "-C", cacheDir, "fetch", "--quiet", "--force", "--", uri, fmt("%s:%s", *ref, *ref) });
 
+#ifdef _WIN32
+        __utimbuf64 times;
+        times.acttime = now;
+        times.modtime = now;
+        _utime64(localRefFile.c_str(), &times);
+#else
         struct timeval times[2];
         times[0].tv_sec = now;
         times[0].tv_usec = 0;
@@ -139,6 +147,7 @@ GitInfo exportGit(ref<Store> store, const std::string & uri,
         times[1].tv_usec = 0;
 
         utimes(localRefFile.c_str(), times);
+#endif
     }
 
     // FIXME: check whether rev is an ancestor of ref.

@@ -31,8 +31,8 @@
 #include <sys/stat.h>
 // TODO WINDOWS #include <sys/utsname.h>
 // TODO WINDOWS #include <sys/select.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
+// TODO WINDOWS #include <sys/resource.h>
+// TODO WINDOWS #include <sys/socket.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -645,7 +645,7 @@ struct HookInstance
     Pipe builderOut;
 
     /* The process ID of the hook. */
-    Pid pid;
+    Process pid;
 
     FdSink sink;
 
@@ -796,7 +796,7 @@ private:
     std::unique_ptr<UserLock> buildUser;
 
     /* The process ID of the builder. */
-    Pid pid;
+    Process pid;
 
     /* The temporary directory. */
     Path tmpDir;
@@ -2277,7 +2277,7 @@ void DerivationGoal::startBuilder()
 
         options.allowVfork = false;
 
-        Pid helper = startProcess([&]() {
+        Process helper = startProcess([&]() {
 
             /* Drop additional groups here because we can't do it
                after we've created the new user namespace.  FIXME:

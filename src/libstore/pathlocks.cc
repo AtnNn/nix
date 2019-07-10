@@ -40,6 +40,9 @@ void deleteLockFile(const Path & path, int fd)
 
 bool lockFile(int fd, LockType lockType, bool wait)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     struct flock lock;
     if (lockType == ltRead) lock.l_type = F_RDLCK;
     else if (lockType == ltWrite) lock.l_type = F_WRLCK;
@@ -67,6 +70,7 @@ bool lockFile(int fd, LockType lockType, bool wait)
     }
 
     return true;
+#endif
 }
 
 

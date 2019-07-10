@@ -2,6 +2,7 @@
 #include "globals.hh"
 #include "local-store.hh"
 #include "finally.hh"
+#include "pathinfo.hh"
 
 #include <functional>
 #include <queue>
@@ -60,7 +61,7 @@ static void makeSymlink(const Path & link, const Path & target)
 
     /* Create the new symlink. */
     Path tempLink = (format("%1%.tmp-%2%-%3%")
-        % link % getpid() % random()).str();
+        % link % getpid() % rand()).str();
     createSymlink(target, tempLink);
 
     /* Atomically replace the old one. */
@@ -169,6 +170,9 @@ void LocalStore::addTempRoot(const Path & path)
             debug(format("acquiring read lock on '%1%'") % fnTempRoots);
             lockFile(state->fdTempRoots.get(), ltRead, true);
 
+#ifdef _WIN32
+            // TODO WINDOWS
+#else
             /* Check whether the garbage collector didn't get in our
                way. */
             struct stat st;
@@ -179,6 +183,7 @@ void LocalStore::addTempRoot(const Path & path)
             /* The garbage collector deleted this file before we could
                get a lock.  (It won't delete the file after we get a
                lock.)  Try again. */
+#endif
         }
 
     }
@@ -344,12 +349,9 @@ Roots LocalStore::findRoots(bool censor)
     return roots;
 }
 
+#ifndef _WIN32
 static void readProcLink(const string & file, Roots & roots)
 {
-    /* 64 is the starting buffer size gnu readlink uses... */
-    auto bufsiz = ssize_t{64};
-try_again:
-    char buf[bufsiz];
     auto res = readlink(file.c_str(), buf, bufsiz);
     if (res == -1) {
         if (errno == ENOENT || errno == EACCES || errno == ESRCH)
@@ -366,6 +368,7 @@ try_again:
         roots[std::string(static_cast<char *>(buf), res)]
             .emplace(file);
 }
+#endif
 
 static string quoteRegexChars(const string & raw)
 {
@@ -385,6 +388,9 @@ static void readFileRoots(const char * path, Roots & roots)
 
 void LocalStore::findRuntimeRoots(Roots & roots, bool censor)
 {
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     Roots unchecked;
 
     auto procDir = AutoCloseDir{opendir("/proc")};
@@ -476,6 +482,7 @@ void LocalStore::findRuntimeRoots(Roots & roots, bool censor)
             }
         }
     }
+#endif
 }
 
 

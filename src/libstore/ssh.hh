@@ -18,7 +18,7 @@ private:
 
     struct State
     {
-        Pid sshMaster;
+        Process sshMaster;
         std::unique_ptr<AutoDelete> tmpDir;
         Path socketPath;
     };
@@ -33,7 +33,7 @@ public:
 
     struct Connection
     {
-        Pid sshPid;
+        Process sshPid;
         AutoCloseFD out, in;
     };
 

@@ -42,7 +42,9 @@ Settings::Settings()
     , nixManDir(canonPath(NIX_MAN_DIR))
     , nixDaemonSocketFile(canonPath(nixStateDir + DEFAULT_SOCKET_PATH))
 {
+#if NIX_ALLOW_BUILD_USERS
     buildUsersGroup = getuid() == 0 ? "nixbld" : "";
+#endif
     lockCPU = getEnv("NIX_AFFINITY_HACK", "1") == "1";
 
     caFile = getEnv("NIX_SSL_CERT_FILE", getEnv("SSL_CERT_FILE", ""));
