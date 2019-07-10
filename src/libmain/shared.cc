@@ -93,9 +93,9 @@ static void opensslLockCallback(int mode, int type, const char * file, int line)
         opensslLocks[type].unlock();
 }
 
-
+#if NIX_HANDLE_INTERRUPTS
 static void sigHandler(int signo) { }
-
+#endif
 
 void initNix()
 {
@@ -268,7 +268,9 @@ void showManPage(const string & name)
 
 int handleExceptions(const string & programName, std::function<void()> fun)
 {
+#if NIX_HANDLE_INTERRUPTS
     ReceiveInterrupts receiveInterrupts; // FIXME: need better place for this
+#endif
 
     string error = ANSI_RED "error:" ANSI_NORMAL " ";
     try {
@@ -331,7 +333,9 @@ RunPager::RunPager()
         throw SysError(format("executing '%1%'") % pager);
     });
 
+#if NIX_HANDLE_INTERRUPTS
     pid.setKillSignal(SIGINT);
+#endif
 
     if (dup2(toPager.writeSide.get(), STDOUT_FILENO) == -1)
         throw SysError("dupping stdout");

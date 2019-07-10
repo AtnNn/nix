@@ -3225,7 +3225,6 @@ void DerivationGoal::registerOutputs()
                 % drvPath % path);
         }
 
-#ifndef __CYGWIN__
         /* Check that the output is not group or world writable, as
            that means that someone else can have interfered with the
            build.  Also, the output should be owned by the build
@@ -3274,7 +3273,7 @@ void DerivationGoal::registerOutputs()
             if (!recursive) {
                 /* The output path should be a regular file without
                    execute permission. */
-                if (!fi.is_regular() || fi.executable())
+                if (!fi.is_regular() || fi.is_executable())
                     throw BuildError(
                         format("output path '%1%' should be a non-executable regular file") % path);
             }
@@ -3319,9 +3318,9 @@ void DerivationGoal::registerOutputs()
            all files are owned by the build user, if applicable. */
         canonicalisePathMetaData(actualPath,
 #if NIX_ALLOW_BUILD_USERS
-            buildUser && !rewritten ? buildUser->getUID()
+            buildUser && !rewritten ? buildUser->getUID() :
 #endif
-            : -1, inodesSeen);
+            -1, inodesSeen);
 
         /* For this output path, find the references to other paths
            contained in it.  Compute the SHA-256 NAR hash at the same

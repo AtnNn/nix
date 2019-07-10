@@ -74,6 +74,15 @@ public:
 #endif
   }
 
+    time_t modification_time() const {
+#ifdef _WIN32
+        // TODO WINDOWS
+        return 0;
+#else
+        return st.st_mtime;
+#endif
+    }
+    
   uint64_t size_on_disk() const {
 #ifdef _WIN32
     // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex
@@ -127,7 +136,7 @@ inline FileInfo lstat(Path const &path, bool allowMissing = false) {
 }
 #endif
 
-Path readlink(Path const& link) {
+inline Path readlink(Path const& link) {
     // TODO WINDOWS
     return "";
 }

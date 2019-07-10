@@ -929,8 +929,10 @@ static RegisterStoreImplementation regStore([](
     -> std::shared_ptr<Store>
 {
     switch (getStoreType(uri, get(params, "state", settings.nixStateDir))) {
+#if NIX_ALLOW_REMOTE_STORE
         case tDaemon:
             return std::shared_ptr<Store>(std::make_shared<UDSRemoteStore>(params));
+#endif
         case tLocal: {
             Store::Params params2 = params;
             if (hasPrefix(uri, "/"))

@@ -399,15 +399,15 @@ static void canonicaliseTimestampAndPermissions(const Path & path, FileInfo cons
 
     }
 
-    if (fi.mtime() != mtimeStore) {
+    if (fi.modification_time() != mtimeStore) {
 #if _WIN32
         __utimbuf64 times;
-        times.actime = fi.atime();
-        times.modtime = mTimeStore;
+        times.actime = fi.access_time();
+        times.modtime = mtimeStore;
         if (!fi.is_symlink() && _utime64(path.c_str(), &times) == -1)
 #else
         struct timeval times[2];
-        times[0].tv_sec = fi.atime();
+        times[0].tv_sec = fi.aaccess_time();
         times[0].tv_usec = 0;
         times[1].tv_sec = mtimeStore;
         times[1].tv_usec = 0;
@@ -486,12 +486,12 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
        However, ignore files that we chown'ed ourselves previously to
        ensure that we don't fail on hard links within the same build
        (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
-    if (fromUid != (uid_t) -1 && fi.uid() != fromUid) {
-        assert(!S_ISDIR(st.st_mode));
-        if (inodesSeen.find(Inode(st.st_dev, st.st_ino)) == inodesSeen.end())
+    if (fromUid != (uid_t) -1 && fi.owner() != fromUid) {
+        assert(!fi.is_directory());
+        if (inodesSeen.find(Inode(fi.device(), fi.inode())) == inodesSeen.end())
             throw BuildError(format("invalid ownership on file '%1%'") % path);
         mode_t mode = fi.mode() & ~S_IFMT;
-        assert(fi.is_symlink() || (fi.owner() == geteuid() && (mode == 0444 || mode == 0555) && fi.mtime() == mtimeStore));
+        assert(fi.is_symlink() || (fi.owner() == geteuid() && (mode == 0444 || mode == 0555) && fi.modification_time() == mtimeStore));
         return;
     }
 
@@ -506,7 +506,7 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
        writable.  The only exception is top-level paths in the Nix
        store (since that directory is group-writable for the Nix build
        users group); we check for this case below. */
-    if (fi.uid() != geteuid()) {
+    if (fi.owner() != geteuid()) {
 #if HAVE_LCHOWN
         if (lchown(path.c_str(), geteuid(), getegid()) == -1)
 #else
@@ -517,7 +517,7 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
                 % path % geteuid());
     }
 
-    if (S_ISDIR(st.st_mode)) {
+    if (fi.is_directory()) {
         DirEntries entries = readDirectory(path);
         for (auto & i : entries)
             canonicalisePathMetaData_(path + "/" + i.name, fromUid, inodesSeen);
@@ -889,8 +889,8 @@ void LocalStore::querySubstitutablePathInfos(const PathSet & paths,
                     info->references,
                     narInfo ? narInfo->fileSize : 0,
                     info->narSize};
-            } catch (InvalidPath) {
-            } catch (SubstituterDisabled) {
+            } catch (InvalidPath const&) {
+            } catch (SubstituterDisabled const&) {
             } catch (Error & e) {
                 if (settings.tryFallback)
                     printError(e.what());

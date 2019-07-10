@@ -36,7 +36,7 @@ inline unsetenv(char const* name) {
     return 0;
 }
 
-std::string get_current_user_name() {
+inline std::string get_current_user_name() {
     DWORD size;
     if (GetUserNameA(nullptr, &size)) {
         std::vector<char> ret;

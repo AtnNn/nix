@@ -50,7 +50,7 @@ Generations findGenerations(Path profile, int & curGen)
             gen.path = profileDir + "/" + i.name;
             gen.number = n;
             FileInfo fi = lstat(gen.path);
-            gen.creationTime = fi.mtime();
+            gen.creationTime = fi.modification_time();
             gens.push_back(gen);
         }
     }

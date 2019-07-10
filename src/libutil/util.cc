@@ -1491,21 +1491,17 @@ void callFailure(const std::function<void(std::exception_ptr exc)> & failure, st
 
 static Sync<std::pair<unsigned short, unsigned short>> windowSize{{0, 0}};
 
-
+#if NIX_HANDLE_INTERRUPTS
 static void updateWindowSize()
 {
-#ifdef _WIN32
-    // TODO WINDOWS
-#else
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == 0) {
         auto windowSize_(windowSize.lock());
         windowSize_->first = ws.ws_row;
         windowSize_->second = ws.ws_col;
     }
-#endif
 }
-
+#endif
 
 std::pair<unsigned short, unsigned short> getWindowSize()
 {

@@ -43,6 +43,7 @@ bool lockFile(int fd, LockType lockType, bool wait)
 {
 #ifdef _WIN32
     // TODO WINDOWS
+    return false;
 #else
     struct flock lock;
     if (lockType == ltRead) lock.l_type = F_RDLCK;
