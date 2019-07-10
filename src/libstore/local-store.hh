@@ -30,7 +30,7 @@ struct OptimiseStats
 {
     unsigned long filesLinked = 0;
     unsigned long long bytesFreed = 0;
-    unsigned long long blocksFreed = 0;
+    unsigned long long realBytesFreed = 0;
 };
 
 

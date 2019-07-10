@@ -170,6 +170,7 @@ public:
 
     ~JSONPlaceholder()
     {
+        #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         assert(!first || std::uncaught_exception());
     }
 

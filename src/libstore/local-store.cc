@@ -5,6 +5,7 @@
 #include "worker-protocol.hh"
 #include "derivations.hh"
 #include "nar-info.hh"
+#include "pathinfo.hh"
 #include "permissions.hh"
 
 #include <iostream>
@@ -31,7 +32,7 @@
 #include <sys/xattr.h>
 #endif
 
-#ifdef __CYGWIN__ 
+#ifdef __CYGWIN__
 #error TODO WINDOWS
 #include <windows.h>
 #endif
@@ -72,6 +73,7 @@ LocalStore::LocalStore(const Params & params)
         createSymlink(profilesDir, gcRootsDir + "/profiles");
     }
 
+#if NIX_ALLOW_BUILD_USERS
     /* Optionally, create directories and set permissions for a
        multi-user install. */
     if (userIsRoot() && settings.buildUsersGroup != "") {
@@ -100,6 +102,7 @@ LocalStore::LocalStore(const Params & params)
             }
         }
     }
+#endif
 
     /* Ensure that the store and its parents are not symlinks. */
     if (getEnv("NIX_IGNORE_SYMLINK_STORE") != "1") {

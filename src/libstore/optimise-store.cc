@@ -131,7 +131,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     }
 
     /* This can still happen on top-level files. */
-    if (st.st_nlink > 1 && inodeHash.count(st.st_ino)) {
+    if (fi.hardlink_count() > 1 && inodeHash.count(fi.inode())) {
         debug(format("'%1%' is already linked, with %2% other file(s)") % path % (st.st_nlink - 2));
         return;
     }
@@ -153,9 +153,12 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
 
  retry:
     if (!pathExists(linkPath)) {
+#ifdef _WIN32
+        // TODO WINDOWS
+#else
         /* Nope, create a hard link in the links directory. */
         if (link(path.c_str(), linkPath.c_str()) == 0) {
-            inodeHash.insert(st.st_ino);
+            inodeHash.insert(fi.inode());
             return;
         }
 
@@ -176,6 +179,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
         default:
             throw SysError("cannot link '%1%' to '%2%'", linkPath, path);
         }
+#endif
     }
 
     /* Yes!  We've seen a file with the same contents.  Replace the
@@ -187,7 +191,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
         return;
     }
 
-    if (st.st_size != stLink.st_size) {
+    if (fi.size() != fiLink.size()) {
         printError(format("removing corrupted link '%1%'") % linkPath);
         unlink(linkPath.c_str());
         goto retry;
@@ -206,19 +210,23 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     MakeReadOnly makeReadOnly(mustToggle ? dirOf(path) : "");
 
     Path tempLink = (format("%1%/.tmp-link-%2%-%3%")
-        % realStoreDir % getpid() % random()).str();
+        % realStoreDir % getpid() % rand()).str();
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     if (link(linkPath.c_str(), tempLink.c_str()) == -1) {
         if (errno == EMLINK) {
             /* Too many links to the same file (>= 32000 on most file
                systems).  This is likely to happen with empty files.
                Just shrug and ignore. */
-            if (st.st_size)
+            if (fi.size())
                 printInfo(format("'%1%' has maximum number of links") % linkPath);
             return;
         }
         throw SysError("cannot link '%1%' to '%2%'", tempLink, linkPath);
     }
+# endif
 
     /* Atomically replace the old file with the new hard link. */
     if (rename(tempLink.c_str(), path.c_str()) == -1) {
@@ -236,11 +244,11 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     }
 
     stats.filesLinked++;
-    stats.bytesFreed += st.st_size;
-    stats.blocksFreed += st.st_blocks;
+    stats.bytesFreed += fi.size();
+    stats.realBytesFreed += fi.size_on_disk();
 
     if (act)
-        act->result(resFileLinked, st.st_size, st.st_blocks);
+        act->result(resFileLinked, fi.size(), fi.size_on_disk()); // TODO WINDOWS: last parameter is no longer blocks but bytes
 }
 
 

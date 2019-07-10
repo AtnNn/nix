@@ -92,6 +92,11 @@ public:
 #endif
   }
 
+    int mtime() {
+        // TODO WINDOWS and others too
+        return 0;
+    }
+
 private:
     friend FileInfo lstat(Path const &path, bool allowMissing);
     friend FileInfo stat(Path const &path);

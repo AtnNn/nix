@@ -151,10 +151,8 @@ bool PathLocks::lockPaths(const PathSet & _paths,
 
                 /* Check that the lock file hasn't become stale (i.e.,
                    hasn't been unlinked). */
-                struct stat st;
-                if (fstat(fd.get(), &st) == -1)
-                    throw SysError(format("statting lock file '%1%'") % lockPath);
-                if (st.st_size != 0)
+                FileInfo fi = fstat(fd);
+                if (fi.size() != 0)
                     /* This lock file has been unlinked, so we're holding
                        a lock on a deleted file.  This means that other
                        processes may create and acquire a lock on

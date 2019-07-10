@@ -13,6 +13,7 @@
 #include "nar-info.hh"
 #include "parsed-derivations.hh"
 #include "machines.hh"
+#include "pathinfo.hh"
 
 #include <algorithm>
 #include <iostream>
@@ -1531,7 +1532,9 @@ void DerivationGoal::tryToBuild()
     } catch (BuildError & e) {
         printError(e.msg());
         outputLocks.unlock();
+#if NIX_ALLOW_BUILD_USERS
         buildUser.reset();
+#endif
         worker.permanentFailure = true;
         done(BuildResult::InputRejected, e.msg());
         return;
@@ -1567,10 +1570,12 @@ void DerivationGoal::buildDone()
 {
     trace("build done");
 
+#if NIX_ALLOW_BUILD_USERS
     /* Release the build user at the end of this function. We don't do
        it right away because we don't want another build grabbing this
        uid and then messing around with our output. */
     Finally releaseBuildUser([&]() { buildUser.reset(); });
+#endif
 
     /* Since we got an EOF on the logger pipe, the builder is presumed
        to have terminated.  In fact, the builder could also have
@@ -1602,12 +1607,14 @@ void DerivationGoal::buildDone()
     /* Close the log file. */
     closeLogFile();
 
+#if NIX_ALLOW_BUILD_USERS
     /* When running under a build user, make sure that all processes
        running under that uid are gone.  This is to prevent a
        malicious user from leaving behind a process that keeps files
        open and modifies them after they have been chown'ed to
        root. */
     if (buildUser) buildUser->kill();
+#endif
 
     bool diskFull = false;
 
@@ -2229,12 +2236,17 @@ void DerivationGoal::startBuilder()
     /* Create a pipe to get the output of the builder. */
     //builderOut.create();
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     builderOut.readSide = posix_openpt(O_RDWR | O_NOCTTY);
     if (!builderOut.readSide)
         throw SysError("opening pseudoterminal master");
 
     std::string slaveName(ptsname(builderOut.readSide.get()));
+#endif
 
+#if NIX_ALLOW_BUILD_USERS
     if (buildUser) {
         if (chmod(slaveName.c_str(), 0600))
             throw SysError("changing mode of pseudoterminal slave");
@@ -2245,6 +2257,7 @@ void DerivationGoal::startBuilder()
         if (grantpt(builderOut.readSide.get()))
             throw SysError("granting access to pseudoterminal slave");
     }
+#endif
 
     #if 0
     // Mount the pt in the sandbox so that the "tty" command works.
@@ -2253,13 +2266,20 @@ void DerivationGoal::startBuilder()
         dirsInChroot[slaveName] = {slaveName, false};
     #endif
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     if (unlockpt(builderOut.readSide.get()))
         throw SysError("unlocking pseudoterminal");
+#endif
 
     builderOut.writeSide = open(slaveName.c_str(), O_RDWR | O_NOCTTY);
     if (!builderOut.writeSide)
         throw SysError("opening pseudoterminal slave");
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     // Put the pt into raw mode to prevent \n -> \r\n translation.
     struct termios term;
     if (tcgetattr(builderOut.writeSide.get(), &term))
@@ -2269,7 +2289,8 @@ void DerivationGoal::startBuilder()
 
     if (tcsetattr(builderOut.writeSide.get(), TCSANOW, &term))
         throw SysError("putting pseudoterminal into raw mode");
-
+#endif
+    
     result.startTime = time(0);
 
     /* Fork a child to build the package. */
@@ -2382,7 +2403,11 @@ void DerivationGoal::startBuilder()
     } else
 #endif
     {
-        options.allowVfork = !buildUser && !drv->isBuiltin();
+        options.allowVfork =
+#if NIX_ALLOW_BUILD_USERS
+            !buildUser &&
+#endif
+            !drv->isBuiltin();
         pid = startProcess([&]() {
             runChild();
         }, options);
@@ -2606,9 +2631,11 @@ void DerivationGoal::writeStructuredAttrs()
 
 void DerivationGoal::chownToBuilder(const Path & path)
 {
+#if NIX_ALLOW_BUILD_USERS
     if (!buildUser) return;
     if (chown(path.c_str(), buildUser->getUID(), buildUser->getGID()) == -1)
         throw SysError(format("cannot change ownership of '%1%'") % path);
+#endif
 }
 
 
@@ -2687,7 +2714,9 @@ void DerivationGoal::runChild()
         try {
             setupSeccomp();
         } catch (...) {
+#if NIX_ALLOW_BUILD_USERS
             if (buildUser) throw;
+#endif
         }
 
         bool setUser = true;
@@ -2905,9 +2934,13 @@ void DerivationGoal::runChild()
         if (cur != -1) personality(cur | ADDR_NO_RANDOMIZE);
 #endif
 
+#ifdef _WIN32
+        // TODO WINDOWS
+#else
         /* Disable core dumps by default. */
         struct rlimit limit = { 0, RLIM_INFINITY };
         setrlimit(RLIMIT_CORE, &limit);
+#endif
 
         // FIXME: set other limits to deterministic values?
 
@@ -2916,6 +2949,7 @@ void DerivationGoal::runChild()
         for (auto & i : env)
             envStrs.push_back(rewriteStrings(i.first + "=" + i.second, inputRewrites));
 
+#if NIX_ALLOW_BUILD_USERS
         /* If we are running in `build-users' mode, then switch to the
            user we allocated above.  Make sure that we drop all root
            privileges.  Note that above we have closed all file
@@ -2940,6 +2974,7 @@ void DerivationGoal::runChild()
                 geteuid() != buildUser->getUID())
                 throw SysError("setuid failed");
         }
+#endif
 
         /* Fill in the arguments. */
         Strings args;

@@ -4,7 +4,9 @@
 #include <string>
 
 #include "store-api.hh"
+#include "globals.hh"
 
+#if NIX_ALLOW_REMOTE_STORE
 
 namespace nix {
 
@@ -154,3 +156,5 @@ private:
 
 
 }
+
+#endif // NIX_ALLOW_REMOTE_STORE

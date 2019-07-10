@@ -251,6 +251,7 @@ public:
     bool valid() {
 #ifdef _WIN32
         // TODO WINDOWS
+        return true;
 #else
         return pid != -1;
 #endif

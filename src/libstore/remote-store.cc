@@ -1,10 +1,13 @@
+#include "globals.hh"
+
+#if NIX_ALLOW_REMOTE_STORE
+
 #include "serialise.hh"
 #include "util.hh"
 #include "remote-store.hh"
 #include "worker-protocol.hh"
 #include "archive.hh"
 #include "affinity.hh"
-#include "globals.hh"
 #include "derivations.hh"
 #include "pool.hh"
 #include "finally.hh"
@@ -807,3 +810,5 @@ static RegisterStoreImplementation regStore([](
 });
 
 }
+
+#endif // NIX_ALLOW_REMOTE_STORE

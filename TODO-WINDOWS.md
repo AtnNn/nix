@@ -7,6 +7,7 @@ TODO WINDOWS:
 - File locking
 - Users and permissions
 - Processes and pid
+- Networking
 - Unicode paths
 - Translate hardcoded paths
 - Runtime roots
