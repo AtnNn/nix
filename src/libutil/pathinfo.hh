@@ -11,6 +11,33 @@
 
 namespace nix {
 
+class FileAttributesHandle {
+  public:
+    HANDLE handle;
+
+  FileAttributesHandle(Path const &path){
+    handle = CreateFileA(
+      path.c_str(),
+      FILE_READ_ATTRIBUTES,
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+      0,
+      OPEN_EXISTING,
+      FILE_FLAG_BACKUP_SEMANTICS,
+      0
+    );
+    if(handle == INVALID_HANDLE_VALUE){
+      throw SysError(format("Could not query attributes for file ''%1%'") % path );
+    }
+  }
+
+  ~FileAttributesHandle(){
+    auto result = CloseHandle(handle);
+    if(!result){
+      throw SysError("Could not close attribute handle");
+    }
+  }
+};
+
 class FileInfo {
 public:
   FileInfo() {}
@@ -105,13 +132,34 @@ public:
 #endif
   }
 
-  int hardlink_count() const {
+  unsigned int hardlink_count() const {
 #ifdef _WIN32
-    // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/fileapi/ns-fileapi-_by_handle_file_information
-    return 1;
+    BY_HANDLE_FILE_INFORMATION bhfi;
+    auto faHandle = FileAttributesHandle(path);
+    GetFileInformationByHandle(faHandle.handle, &bhfi);
+    return static_cast<unsigned int>(bhfi.nNumberOfLinks);
 #else
     return st.st_nlink;
 #endif
+  }
+
+  std::pair<uint32_t, uint64_t> uniqueId() const {
+#ifdef _WIN32
+    BY_HANDLE_FILE_INFORMATION bhfi;
+    auto faHandle = FileAttributesHandle(path);
+    GetFileInformationByHandle(faHandle.handle, &bhfi);
+    ULARGE_INTEGER uli;
+    uli.LowPart = bhfi.nFileIndexLow;
+    uli.HighPart = bhfi.nFileIndexHigh;
+    std::pair<uint32_t, uint64_t>uniqueIdPair(bhfi.dwVolumeSerialNumber, uli.QuadPart);
+#else
+    std::pair<uint32_t, uint64_t> uniqueIdPair(st.st_dev, st.st_ino);
+#endif
+    return uniqueIdPair;
+  }
+
+  uint64_t inode() const {
+      return uniqueId().second;
   }
     
 private:
@@ -119,6 +167,7 @@ private:
     friend FileInfo stat(Path const &path);
 
 #ifdef _WIN32
+  Path path;
   WIN32_FILE_ATTRIBUTE_DATA data{};
 #else
   struct stat st {};
@@ -159,20 +208,12 @@ inline FileInfo stat(Path const &path) {
     FileInfo ret = lstat(path);
     if (!ret.is_symlink()) return ret;
 
-    HANDLE handle = CreateFileA(
-        path.c_str(),
-        FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        0,
-        OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS,
-        0);
-    // TODO WINDOWS: close handle safely
+    auto faHandle = FileAttributesHandle(path);
     std::vector<char> finalPath;
-    DWORD size = GetFinalPathNameByHandleA(handle, nullptr, 0, FILE_NAME_NORMALIZED);
+    DWORD size = GetFinalPathNameByHandleA(faHandle.handle, nullptr, 0, FILE_NAME_NORMALIZED);
     if (size) {
         finalPath.resize(size);
-        size = GetFinalPathNameByHandleA(handle, finalPath.data(), size - 1, FILE_NAME_NORMALIZED);
+        size = GetFinalPathNameByHandleA(faHandle.handle, finalPath.data(), size - 1, FILE_NAME_NORMALIZED);
         if (size != 0) {
             if (size != finalPath.size() - 1) {
                 throw SysError("system returned inconsistent path size");
