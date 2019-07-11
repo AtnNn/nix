@@ -34,7 +34,9 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(const std::string
 
     auto conn = std::make_unique<Connection>();
     conn->sshPid = startProcess([&]() {
+#if NIX_HANDLE_INTERRUPTS
         restoreSignals();
+#endif
 
         close(in.writeSide.get());
         close(out.readSide.get());

@@ -1,7 +1,5 @@
 #include "globals.hh"
 
-#if NIX_ALLOW_REMOTE_STORE
-
 #include "serialise.hh"
 #include "util.hh"
 #include "remote-store.hh"
@@ -42,6 +40,8 @@ template<class T> T readStorePaths(Store & store, Source & from)
 
 template PathSet readStorePaths(Store & store, Source & from);
 template Paths readStorePaths(Store & store, Source & from);
+
+#if NIX_ALLOW_REMOTE_STORE
 
 /* TODO: Separate these store impls into different files, give them better names */
 RemoteStore::RemoteStore(const Params & params)
@@ -809,6 +809,7 @@ static RegisterStoreImplementation regStore([](
     return std::make_shared<UDSRemoteStore>(std::string(uri, uriScheme.size()), params);
 });
 
+#endif // NIX_ALLOW_REMOTE_STORE
+
 }
 
-#endif // NIX_ALLOW_REMOTE_STORE

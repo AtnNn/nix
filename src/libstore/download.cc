@@ -453,10 +453,12 @@ struct CurlDownloader : public Downloader
 
     void workerThreadMain()
     {
+#if NIX_HANDLE_INTERRUPTS
         /* Cause this thread to be notified on SIGINT. */
         auto callback = createInterruptCallback([&]() {
             stopWorkerThread();
         });
+#endif
 
         std::map<CURL *, std::shared_ptr<DownloadItem>> items;
 

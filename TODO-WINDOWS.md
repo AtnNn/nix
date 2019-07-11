@@ -22,6 +22,6 @@ pacman -S git mingw-w64-x86_64-toolchain base-devel autoconf-archive
 
 ```bash
 sh booststrap.sh
-./configure --disable-doc-gen EDITLINE_LIBS=wineditline
+./configure --disable-doc-gen EDITLINE_LIBS=-lreadline prefix=`pwd`/root
 make -j `nproc`
 ```

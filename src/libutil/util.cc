@@ -1570,12 +1570,6 @@ void startSignalHandlerThread()
     std::thread(signalHandlerThread, set).detach();
 }
 
-void restoreSignals()
-{
-    if (sigprocmask(SIG_SETMASK, &savedSignalMask, nullptr))
-        throw SysError("restoring signals");
-}
-
 /* RAII helper to automatically deregister a callback. */
 struct InterruptCallbackImpl : InterruptCallback
 {
@@ -1599,5 +1593,13 @@ std::unique_ptr<InterruptCallback> createInterruptCallback(std::function<void()>
 }
 
 #endif // NIX_HANDLE_INTERRUPTS
+
+void restoreSignals()
+{
+#if NIX_HANDLE_INTERRUPTS
+    if (sigprocmask(SIG_SETMASK, &savedSignalMask, nullptr))
+        throw SysError("restoring signals");
+#endif
+}
 
 }

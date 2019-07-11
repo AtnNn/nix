@@ -79,11 +79,15 @@ Paths Store::importPaths(Source & source, std::shared_ptr<FSAccessor> accessor, 
 
         ValidPathInfo info;
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
         info.path = readStorePath(*this, source);
 
         //Activity act(*logger, lvlInfo, format("importing path '%s'") % info.path);
 
         info.references = readStorePaths<PathSet>(*this, source);
+#endif
 
         info.deriver = readString(source);
         if (info.deriver != "") assertStorePath(info.deriver);

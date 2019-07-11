@@ -27,7 +27,7 @@ define build-program
   _srcs := $$(sort $$(foreach src, $$($(1)_SOURCES), $$(src)))
   $(1)_OBJS := $$(addprefix $(buildprefix), $$(addsuffix .o, $$(basename $$(_srcs))))
   _libs := $$(foreach lib, $$($(1)_LIBS), $$($$(lib)_PATH))
-  $(1)_PATH := $$(_d)/$(1)
+  $(1)_PATH := $$(_d)/$(1).exe
 
   $$(eval $$(call create-dir, $$(_d)))
 
@@ -35,7 +35,7 @@ define build-program
 	$$(trace-ld) $(CXX) -o $$@ $$(LDFLAGS) $$(GLOBAL_LDFLAGS) $$($(1)_OBJS) $$($(1)_LDFLAGS) $$(foreach lib, $$($(1)_LIBS), $$($$(lib)_LDFLAGS_USE))
 
   $(1)_INSTALL_DIR ?= $$(bindir)
-  $(1)_INSTALL_PATH := $$($(1)_INSTALL_DIR)/$(1)
+  $(1)_INSTALL_PATH := $$($(1)_INSTALL_DIR)/$(1).exe
 
   $$(eval $$(call create-dir, $$($(1)_INSTALL_DIR)))
 

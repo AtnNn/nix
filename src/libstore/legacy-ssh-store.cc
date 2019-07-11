@@ -1,3 +1,7 @@
+#include "globals.hh"
+
+#if NIX_ALLOW_REMOTE_STORE
+
 #include "archive.hh"
 #include "pool.hh"
 #include "remote-store.hh"
@@ -291,3 +295,5 @@ static RegisterStoreImplementation regStore([](
 });
 
 }
+
+#endif NIX_ALLOW_REMOTE_STORE

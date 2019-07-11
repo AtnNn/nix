@@ -5,7 +5,7 @@
 
 #include <setjmp.h>
 
-#ifdef READLINE
+#if defined(READLINE) || 1 // TODO WINDOWS
 #include <readline/history.h>
 #include <readline/readline.h>
 #else
@@ -15,7 +15,7 @@
 // For compatibility with these versions, we wrap the API here
 // (wrapping multiple times on newer versions is no problem).
 #ifdef __MINGW32__
-#include <editline/readline.h>
+#include <readline/readline.h> // TODO WINDOWS
 #else
 extern "C" {
 #include <editline.h>
