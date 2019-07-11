@@ -13,3 +13,15 @@ TODO WINDOWS:
 - Runtime roots
 - Add mingw64 to release.nix
 - Update documentation
+
+# Building with MSYS2
+
+```
+pacman -S git mingw-w64-x86_64-toolchain base-devel autoconf-archive
+```
+
+```bash
+sh booststrap.sh
+./configure --disable-doc-gen EDITLINE_LIBS=wineditline
+make -j `nproc`
+```

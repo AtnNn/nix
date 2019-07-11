@@ -6,7 +6,7 @@ else
   ifeq (CYGWIN,$(findstring CYGWIN,$(OS)))
     SO_EXT = dll
   else
-    SO_EXT = so
+    SO_EXT = dll
   endif
 endif
 

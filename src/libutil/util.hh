@@ -225,7 +225,7 @@ typedef std::unique_ptr<DIR, DIRDeleter> AutoCloseDir;
 class Process
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    HANDLE handle; // TODO WINDOWS close??
 #else
     pid_t pid = -1;
     bool separatePG = false;

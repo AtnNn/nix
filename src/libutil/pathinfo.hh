@@ -11,6 +11,13 @@
 
 namespace nix {
 
+#ifdef _WIN32
+typedef std::pair<DWORD, uint64_t> Inode;
+#else
+typedef std::pair<dev_t, ino_t> Inode;
+#endif
+typedef set<Inode> InodesSeen;
+
 class FileAttributesHandle {
   public:
     HANDLE handle;
@@ -33,7 +40,7 @@ class FileAttributesHandle {
   ~FileAttributesHandle(){
     auto result = CloseHandle(handle);
     if(!result){
-      throw SysError("Could not close attribute handle");
+        printMsg(lvlWarn, "warning: could not close attribute handle");
     }
   }
 };
@@ -119,10 +126,6 @@ public:
 #endif
     }
 
-    Inode uniqueId() const {
-        throw "TODO WINDOWS";
-    }
-
   uint64_t size_on_disk() const {
 #ifdef _WIN32
     // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex
@@ -143,7 +146,7 @@ public:
 #endif
   }
 
-  std::pair<uint32_t, uint64_t> uniqueId() const {
+  Inode uniqueId() const {
 #ifdef _WIN32
     BY_HANDLE_FILE_INFORMATION bhfi;
     auto faHandle = FileAttributesHandle(path);
@@ -151,14 +154,13 @@ public:
     ULARGE_INTEGER uli;
     uli.LowPart = bhfi.nFileIndexLow;
     uli.HighPart = bhfi.nFileIndexHigh;
-    std::pair<uint32_t, uint64_t>uniqueIdPair(bhfi.dwVolumeSerialNumber, uli.QuadPart);
+    return {bhfi.dwVolumeSerialNumber, uli.QuadPart};
 #else
-    std::pair<uint32_t, uint64_t> uniqueIdPair(st.st_dev, st.st_ino);
+    return {st.st_dev, st.st_ino};
 #endif
-    return uniqueIdPair;
   }
 
-  uint64_t inode() const {
+    Inode::second_type inode() const {
       return uniqueId().second;
   }
     

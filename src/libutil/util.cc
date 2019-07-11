@@ -793,10 +793,13 @@ Process::Process()
 }
 
 #ifdef _WIN32
-// TODO WINDOWS
+Process::Process(HANDLE handle_)
+    : handle(handle_)
+{
+}
 #else
-Process::Process(pid_t pid)
-    : pid(pid)
+Process::Process(pid_t pid_)
+    : pid(pid_)
 {
 }
 #endif
@@ -1094,7 +1097,9 @@ void runProgram2(const RunOptions & options)
         Strings args_(options.args);
         args_.push_front(options.program);
 
+#if NIX_HANDLE_INTERRUPTS
         restoreSignals();
+#endif
 
         if (options.searchPath)
             execvp(options.program.c_str(), stringsToCharPtrs(args_).data());

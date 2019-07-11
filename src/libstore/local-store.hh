@@ -6,6 +6,7 @@
 #include "store-api.hh"
 #include "sync.hh"
 #include "util.hh"
+#include "pathinfo.hh"
 
 #include <chrono>
 #include <future>
@@ -296,11 +297,6 @@ private:
     friend class DerivationGoal;
     friend class SubstitutionGoal;
 };
-
-
-typedef std::pair<dev_t, ino_t> Inode;
-typedef set<Inode> InodesSeen;
-
 
 /* "Fix", or canonicalise, the meta-data of the files in a store path
    after it has been built.  In particular:

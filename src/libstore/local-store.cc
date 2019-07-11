@@ -495,7 +495,7 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
         return;
     }
 
-    inodesSeen.insert(fi.uniqueID());
+    inodesSeen.insert(fi.uniqueId());
 
     canonicaliseTimestampAndPermissions(path, fi);
 
