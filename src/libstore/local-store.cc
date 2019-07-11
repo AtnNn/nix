@@ -402,7 +402,7 @@ static void canonicaliseTimestampAndPermissions(const Path & path, FileInfo cons
     if (fi.modification_time() != mtimeStore) {
 #if _WIN32
         __utimbuf64 times;
-        times.actime = fi.access_time();
+        times.actime = fi.accessTime();
         times.modtime = mtimeStore;
         if (!fi.is_symlink() && _utime64(path.c_str(), &times) == -1)
 #else
@@ -488,14 +488,14 @@ static void canonicalisePathMetaData_(const Path & path, uid_t fromUid, InodesSe
        (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
     if (fromUid != (uid_t) -1 && fi.owner() != fromUid) {
         assert(!fi.is_directory());
-        if (inodesSeen.find(Inode(fi.device(), fi.inode())) == inodesSeen.end())
+        if (inodesSeen.find(fi.uniqueId()) == inodesSeen.end())
             throw BuildError(format("invalid ownership on file '%1%'") % path);
         mode_t mode = fi.mode() & ~S_IFMT;
         assert(fi.is_symlink() || (fi.owner() == currentUser() && (mode == 0444 || mode == 0555) && fi.modification_time() == mtimeStore));
         return;
     }
 
-    inodesSeen.insert(Inode(fi.device(), fi.inode()));
+    inodesSeen.insert(fi.uniqueID());
 
     canonicaliseTimestampAndPermissions(path, fi);
 

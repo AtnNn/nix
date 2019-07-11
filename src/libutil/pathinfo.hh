@@ -82,7 +82,20 @@ public:
         return st.st_mtime;
 #endif
     }
-    
+
+    time_t accessTime() const {
+#ifdef _WIN32
+        // TODO WINDOWS
+        return 0;
+#else
+        return st.st_atime;
+#endif
+    }
+
+    Inode uniqueId() const {
+        throw "TODO WINDOWS";
+    }
+
   uint64_t size_on_disk() const {
 #ifdef _WIN32
     // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex
