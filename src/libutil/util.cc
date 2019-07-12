@@ -551,7 +551,11 @@ Paths createDirs(const Path & path)
 void createSymlink(const Path & target, const Path & link)
 {
 #ifdef _WIN32
-    // TODO WINDOWS createSymLink
+    auto flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+    if(lstat(target, true).is_directory())
+        flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+    if (!CreateSymbolicLinkA(link.c_str(), target.c_str(), flags))
+        throw SysError(format("creating symlink from '%1%' to '%2'") % link % target);
 #else
     if (symlink(target.c_str(), link.c_str()))
         throw SysError(format("creating symlink from '%1%' to '%2%'") % link % target);
