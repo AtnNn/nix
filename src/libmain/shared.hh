@@ -92,12 +92,14 @@ void showManPage(const string & name);
    terminal and $PAGER is set. Stdout is redirected to the pager. */
 class RunPager
 {
+#if NIX_ALLOW_PAGER
 public:
     RunPager();
     ~RunPager();
 
 private:
     Process pid;
+#endif
 };
 
 extern volatile ::sig_atomic_t blockInt;

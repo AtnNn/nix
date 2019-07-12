@@ -4,10 +4,14 @@
 #include <atomic>
 
 #include <cstdlib>
-// TODO WINDOWS #include <poll.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+
+#ifndef _WIN32
+#include <poll.h>
+#endif
+
 
 #include "windows.hh"
 

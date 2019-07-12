@@ -432,7 +432,7 @@ static int runProgram(const string & program, const Strings & args)
     args2.push_front(program);
 
 #if _WIN32
-    // TODO WINDOWS: test this. maybe move into Process
+    // TODO WINDOWS: runProgram: test. maybe move into Process
     std::string command_line = argvToWindowsCommandLine(args2);
     std::vector<char> command_line_nc(command_line.c_str(), command_line.c_str() + command_line.size() + 1);
     PROCESS_INFORMATION pi;
@@ -443,6 +443,7 @@ static int runProgram(const string & program, const Strings & args)
     DWORD exit_code;
     bool res = GetExitCodeProcess(pi.hProcess, &exit_code);
     DWORD error = GetLastError();
+     // TODO WINDOWS check return values
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     if (!res) {

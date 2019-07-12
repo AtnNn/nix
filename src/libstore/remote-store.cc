@@ -12,11 +12,15 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO WINDOWS #include <sys/socket.h>
-// TODO WINDOWS #include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#ifndef _WIN32
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
+
 
 #include <cstring>
 

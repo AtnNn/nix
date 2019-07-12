@@ -90,6 +90,7 @@ Strings LocalStore::readDirectoryIgnoringInodes(const Path & path, const InodeHa
 void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     const Path & path, InodeHash & inodeHash)
 {
+#if NIX_ALLOW_OPTIMISE
     checkInterrupt();
 
     FileInfo fi = lstat(path);
@@ -154,7 +155,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
  retry:
     if (!pathExists(linkPath)) {
 #ifdef _WIN32
-        // TODO WINDOWS
+        // TODO WINDOWS: Hard links
 #else
         /* Nope, create a hard link in the links directory. */
         if (link(path.c_str(), linkPath.c_str()) == 0) {
@@ -213,7 +214,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
         % realStoreDir % getpid() % rand()).str();
 
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: Hard links
 #else
     if (link(linkPath.c_str(), tempLink.c_str()) == -1) {
         if (errno == EMLINK) {
@@ -248,7 +249,8 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
     stats.realBytesFreed += fi.size_on_disk();
 
     if (act)
-        act->result(resFileLinked, fi.size(), fi.size_on_disk()); // TODO WINDOWS: last parameter is no longer blocks but bytes
+        act->result(resFileLinked, fi.size_on_disk());
+#endif // NIX_ALLOW_OPTIMISE
 }
 
 

@@ -21,7 +21,10 @@
 #include <algorithm>
 #include <cstring>
 #include <regex>
-// TODO WINDOWS #include <dlfcn.h>
+
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 
 namespace nix {

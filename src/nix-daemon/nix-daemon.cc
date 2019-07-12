@@ -18,15 +18,18 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
-// TODO WINDOWS #include <sys/wait.h>
 #include <sys/stat.h>
-// TODO WINDOWS #include <sys/socket.h>
-// TODO WINDOWS #include <sys/un.h>
 #include <errno.h>
-// TODO WINDOWS #include <pwd.h>
-// TODO WINDOWS #include <grp.h>
 #include <fcntl.h>
 #include <limits.h>
+
+#ifndef _WIN32
+#include <sys/wait.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <pwd.h>
+#include <grp.h>
+#endif
 
 #if __APPLE__ || __FreeBSD__
 #include <sys/ucred.h>
@@ -872,8 +875,9 @@ bool matchUser(const string & user, const string & group, const Strings & users)
     if (find(users.begin(), users.end(), user) != users.end())
         return true;
 
-#ifndef __MINGW32__
-    // TODO WINDOWS
+#ifdef _WIN32
+    // TODO WINDOWS matchUSer
+#endif
     for (auto & i : users)
         if (string(i, 0, 1) == "@") {
             if (group == string(i, 1)) return true;

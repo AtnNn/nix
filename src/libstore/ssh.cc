@@ -33,6 +33,9 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(const std::string
     out.create();
 
     auto conn = std::make_unique<Connection>();
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     conn->sshPid = startProcess([&]() {
 #if NIX_HANDLE_INTERRUPTS
         restoreSignals();
@@ -66,7 +69,7 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(const std::string
 
         throw SysError("executing '%s' on '%s'", command, host);
     });
-
+#endif
 
     in.readSide = -1;
     out.writeSide = -1;
@@ -77,7 +80,8 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(const std::string
     return conn;
 }
 
-Path SSHMaster::startMaster()
+Path SSHMaster::startMaster
+()
 {
     if (!useMaster) return "";
 
@@ -92,6 +96,9 @@ Path SSHMaster::startMaster()
     Pipe out;
     out.create();
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
     state->sshMaster = startProcess([&]() {
         restoreSignals();
 
@@ -112,6 +119,7 @@ Path SSHMaster::startMaster()
 
         throw SysError("starting SSH master");
     });
+#endif
 
     out.writeSide = -1;
 

@@ -42,7 +42,7 @@ void deleteLockFile(const Path & path, int fd)
 bool lockFile(int fd, LockType lockType, bool wait)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: lockFile
     return false;
 #else
     struct flock lock;
@@ -151,12 +151,9 @@ bool PathLocks::lockPaths(const PathSet & _paths,
 
                 debug(format("lock acquired on '%1%'") % lockPath);
 
-#ifdef _WIN32
-                // TODO WINDOWS
-#else
                 /* Check that the lock file hasn't become stale (i.e.,
                    hasn't been unlinked). */
-                FileInfo fi = fstat(fd);
+                FileInfo fi = fstat(fd.get());
                 if (fi.size() != 0)
                     /* This lock file has been unlinked, so we're holding
                        a lock on a deleted file.  This means that other
@@ -165,7 +162,6 @@ bool PathLocks::lockPaths(const PathSet & _paths,
                     debug(format("open lock file '%1%' has become stale") % lockPath);
                 else
                     break;
-#endif
             }
 
             /* Use borrow so that the descriptor isn't closed. */

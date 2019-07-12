@@ -17,13 +17,16 @@
 #include <future>
 
 #include <fcntl.h>
-// TODO WINDOWS #include <grp.h>
 #include <limits.h>
-// TODO WINDOWS #include <pwd.h>
-// TODO WINDOWS #include <sys/ioctl.h>
 #include <sys/types.h>
-// TODO WINDOWS #include <sys/wait.h>
 #include <unistd.h>
+
+#ifndef _WIN32
+#include <grp.h>
+#include <pwd.h>
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#endif
 
 #ifdef __APPLE__
 #include <sys/syscall.h>
@@ -219,7 +222,7 @@ bool pathExists(const Path & path)
 Path readLink(const Path & path)
 {
 #if _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: readLink
     return "";
 #else
     checkInterrupt();
@@ -369,8 +372,7 @@ string readLine(int fd)
 }
 
 
-void writeLine(int fd, string s)
-{
+void writeLine(int fd, string s) {
     s += '\n';
     writeFull(fd, s);
 }
@@ -549,7 +551,7 @@ Paths createDirs(const Path & path)
 void createSymlink(const Path & target, const Path & link)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS createSymLink
 #else
     if (symlink(target.c_str(), link.c_str()))
         throw SysError(format("creating symlink from '%1%' to '%2%'") % link % target);
@@ -625,7 +627,7 @@ string drainFD(int fd, bool block)
 void drainFD(int fd, Sink & sink, bool block)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: drainFD
 #else
 
     int saved;
@@ -769,7 +771,7 @@ void Pipe::create()
 {
     int fds[2];
 #if _WIN32
-    if (_pipe(fds, 256, O_BINARY | _O_NOINHERIT) == -1) {
+    if (_pipe(fds, 256, O_BINARY) == -1) {
         throw SysError("creating pipe");
     }
 #elif HAVE_PIPE2
@@ -807,7 +809,8 @@ Process::Process(pid_t pid_)
 Process::~Process()
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS ~Process
+    // if (!CloseHandle(handle);
 #else
     if (pid != -1) kill();
 #endif
@@ -823,18 +826,23 @@ pid_t Process::pid()
 
 int Process::kill()
 {
+    assert(valid());
+
 #ifdef _WIN32
-    // TODO WINDOWS
-    return -1;
+    debug(format("killing process %1%") % handle);
+
+    // ignoring gracefulKill. Windows cannot kill console applications gracefully.
+
+    TerminateProcess(handle, -1); // TODO WINDOWS: check return code
+
 #else
-    assert(pid != -1);
 
     debug(format("killing process %1%") % pid);
 
     /* Send the requested signal to the child.  If it has its own
        process group, send the signal to every process in the child
        process group (which hopefully includes *all* its children). */
-    if (::kill(separatePG ? -pid : pid, killSignal) != 0) {
+    if (::kill(separatePG ? -pid : pid, gracefulKill ? SIGINT : SIGKILL) != 0) {
         /* On BSDs, killing a process group will return EPERM if all
            processes in the group are zombies (or something like
            that). So try to detect and ignore that situation. */
@@ -843,16 +851,16 @@ int Process::kill()
 #endif
             printError((SysError("killing process %d", pid).msg()));
     }
+#endif
 
     return wait();
-#endif
 }
 
 
 int Process::wait()
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: Process::wait()
     return -1;
 #else
     assert(pid != -1);
@@ -880,18 +888,16 @@ void Process::setSeparatePG(bool separatePG)
 #endif
 }
 
-#ifndef _WIN32
-void Process::setKillSignal(int signal)
+void Process::setGracefulKill()
 {
-    this->killSignal = signal;
+    gracefulKill = true;
 }
-#endif
 
 
 pid_t Process::release()
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS Process::release
     return -1;
 #else
     pid_t p = pid;
@@ -901,6 +907,7 @@ pid_t Process::release()
 }
 
 
+#if NIX_ALLOW_BUILD_USERS
 void killUser(uid_t uid)
 {
     debug(format("killing all processes running under uid '%1%'") % uid);
@@ -916,12 +923,9 @@ void killUser(uid_t uid)
 
     Process pid = startProcess([&]() {
 
-#ifdef _WIN32
-                                   // TODO WINDOWS
-#else
         if (setuid(uid) == -1)
             throw SysError("setting uid");
-#endif
+
         while (true) {
 #ifdef __APPLE__
             /* OSX's kill syscall takes a third parameter that, among
@@ -930,8 +934,6 @@ void killUser(uid_t uid)
                which means "follow POSIX", which we don't want here
                  */
             if (syscall(SYS_kill, -1, SIGKILL, false) == 0) break;
-#elif defined(_WIN32)
-            // TODO WINDOWS
 #else
             if (kill(-1, SIGKILL) == 0) break;
 #endif
@@ -952,20 +954,19 @@ void killUser(uid_t uid)
        way to do so (I think).  The most reliable way may be `ps -eo
        uid | grep -q $uid'. */
 }
+#endif
 
 
 //////////////////////////////////////////////////////////////////////
 
+#ifndef _WIN32
 
 /* Wrapper around vfork to prevent the child process from clobbering
    the caller's stack frame in the parent. */
 static pid_t doFork(bool allowVfork, std::function<void()> fun) __attribute__((noinline));
 static pid_t doFork(bool allowVfork, std::function<void()> fun)
 {
-#ifdef _WIN32
-    // TODO WINDOWS
-    return -1;
-#else
+
 #ifdef __linux__
     pid_t pid = allowVfork ? vfork() : fork();
 #else
@@ -974,16 +975,11 @@ static pid_t doFork(bool allowVfork, std::function<void()> fun)
     if (pid != 0) return pid;
     fun();
     abort();
-#endif
 }
 
 
 Process startProcess(std::function<void()> fun, const ProcessOptions & options)
 {
-#ifdef _WIN32
-    // TODO WINDOWS
-    return Process(nullptr);
-#else
     auto wrapper = [&]() {
         if (!options.allowVfork)
             logger = makeDefaultLogger();
@@ -1009,8 +1005,8 @@ Process startProcess(std::function<void()> fun, const ProcessOptions & options)
     if (pid == -1) throw SysError("unable to fork");
 
     return Process(pid);
-#endif
 }
+#endif
 
 
 std::vector<char *> stringsToCharPtrs(const Strings & ss)
@@ -1056,6 +1052,9 @@ std::pair<int, std::string> runProgram(const RunOptions & options_)
 
 void runProgram2(const RunOptions & options)
 {
+#ifdef _WIN32
+        // TODO WINDOWS: runProgram2
+#else
     checkInterrupt();
 
     assert(!(options.standardIn && options.input));
@@ -1080,9 +1079,6 @@ void runProgram2(const RunOptions & options)
         if (source && dup2(in.readSide.get(), STDIN_FILENO) == -1)
             throw SysError("dupping stdin");
 
-#ifdef _WIN32
-        // TODO WINDOWS
-#else
         if (options.chdir && chdir((*options.chdir).c_str()) == -1)
             throw SysError("chdir failed");
         if (options.gid && setgid(*options.gid) == -1)
@@ -1092,7 +1088,6 @@ void runProgram2(const RunOptions & options)
             throw SysError("setgroups failed");
         if (options.uid && setuid(*options.uid) == -1)
             throw SysError("setuid failed");
-#endif
         
         Strings args_(options.args);
         args_.push_front(options.program);
@@ -1119,7 +1114,6 @@ void runProgram2(const RunOptions & options)
         if (writerThread.joinable())
             writerThread.join();
     });
-
 
     if (source) {
         in.readSide = -1;
@@ -1154,6 +1148,8 @@ void runProgram2(const RunOptions & options)
 
     if (status)
         throw ExecError(status, fmt("program '%1%' %2%", options.program, statusToString(status)));
+
+#endif
 }
 
 
@@ -1174,7 +1170,7 @@ void closeMostFDs(const set<int> & exceptions)
 #endif
 
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: closeMostFDs
 #else
     int maxFD = 0;
     maxFD = sysconf(_SC_OPEN_MAX);
@@ -1188,7 +1184,7 @@ void closeMostFDs(const set<int> & exceptions)
 void closeOnExec(int fd)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS closeOnExec
 #else
     int prev;
     if ((prev = fcntl(fd, F_GETFD, 0)) == -1 ||
@@ -1301,7 +1297,7 @@ string replaceStrings(const std::string & s,
 string statusToString(int status)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS statusToString
     return "has status code " + std::to_string(status);
 #else
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
@@ -1326,7 +1322,7 @@ string statusToString(int status)
 bool statusOk(int status)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: statusOk
     return status == 0;
 #else
     return WIFEXITED(status) && WEXITSTATUS(status) == 0;

@@ -6,7 +6,10 @@
 #include <algorithm>
 #include <map>
 #include <thread>
-// TODO WINDOWS #include <dlfcn.h>
+
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 
 namespace nix {
@@ -159,7 +162,7 @@ void MaxBuildJobsSetting::set(const std::string & str)
 
 void initPlugins()
 {
-#if !_WIN32 // TODO WINDOWS
+#if NIX_ALLOW_PLUGINS
     for (const auto & pluginFile : settings.pluginFiles.get()) {
         Paths pluginFiles;
         try {

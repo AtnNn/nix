@@ -14,7 +14,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO WINDOWS #include <sys/select.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <utime.h>
@@ -22,7 +21,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <time.h>
-// TODO WINDOWS #include <grp.h>
+
+#ifndef _WIN32
+#include <sys/select.h>
+#include <grp.h>
+#endif
 
 #if __linux__
 #include <sched.h>
@@ -33,7 +36,6 @@
 #endif
 
 #ifdef __CYGWIN__
-#error TODO WINDOWS
 #include <windows.h>
 #endif
 
@@ -918,7 +920,7 @@ void LocalStore::registerValidPaths(const ValidPathInfos & infos)
        registering operation. */
     if (settings.syncBeforeRegistering) {
 #ifdef _WIN32
-        // TODO WINDOWS
+        // TODO WINDOWS: sync(8)
 #else
         sync();
 #endif

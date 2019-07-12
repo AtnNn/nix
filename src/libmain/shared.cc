@@ -307,6 +307,7 @@ int handleExceptions(const string & programName, std::function<void()> fun)
     return 0;
 }
 
+#if NIX_ALLOW_PAGER
 
 RunPager::RunPager()
 {
@@ -318,7 +319,6 @@ RunPager::RunPager()
     Pipe toPager;
     toPager.create();
 
-    // TODO WINDOWS https://docs.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
     pid = startProcess([&]() {
         if (dup2(toPager.readSide.get(), STDIN_FILENO) == -1)
             throw SysError("dupping stdin");
@@ -333,14 +333,11 @@ RunPager::RunPager()
         throw SysError(format("executing '%1%'") % pager);
     });
 
-#if NIX_HANDLE_INTERRUPTS
-    pid.setKillSignal(SIGINT);
-#endif
+    pid.setGracefulKill();
 
     if (dup2(toPager.writeSide.get(), STDOUT_FILENO) == -1)
         throw SysError("dupping stdout");
 }
-
 
 RunPager::~RunPager()
 {
@@ -354,7 +351,7 @@ RunPager::~RunPager()
         ignoreException();
     }
 }
-
+#endif
 
 string showBytes(unsigned long long bytes)
 {

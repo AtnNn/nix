@@ -225,12 +225,13 @@ typedef std::unique_ptr<DIR, DIRDeleter> AutoCloseDir;
 class Process
 {
 #ifdef _WIN32
-    HANDLE handle; // TODO WINDOWS close??
+    HANDLE handle;
 #else
     pid_t pid = -1;
     bool separatePG = false;
-    int killSignal = SIGKILL;
 #endif
+
+    bool gracefulKill = false;
 
 public:
     Process();
@@ -245,14 +246,11 @@ public:
     int wait();
 
     void setSeparatePG(bool separatePG);
-#ifndef _WIN32
-    void setKillSignal(int signal);
-#endif
+    void setGracefulKill();
     pid_t release();
     bool valid() {
 #ifdef _WIN32
-        // TODO WINDOWS
-        return true;
+        return handle != nullptr;
 #else
         return pid != -1;
 #endif
@@ -318,12 +316,21 @@ public:
         : Error(args...), status(status)
     { }
 
-    bool exited() {
+    bool exited() const {
 #if _WIN32
         // TODO WINDOWS
         return true;
 #else
         return WIFEXITED(status);
+#endif
+    }
+
+    bool failed() const {
+#if _WIN32
+        // TODO WINDOWS
+        return false;
+#else
+        return WIFEXITSTATUS(status) != 0;
 #endif
     }
 };

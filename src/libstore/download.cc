@@ -17,9 +17,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-// TODO WINDOWS
+#ifdef _WIN32
+// Curl includes Windows headers that use these types
 using INT = int;
 using FLOAT = float;
+#endif
 #include <curl/curl.h>
 
 #include <algorithm>

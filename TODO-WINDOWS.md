@@ -1,7 +1,5 @@
 # Native Windows Port
 
-TODO WINDOWS:
-
 - Symbolic links
 - Inodes and hard links
 - File locking

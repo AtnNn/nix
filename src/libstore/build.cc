@@ -27,22 +27,24 @@
 
 #include <limits.h>
 #include <sys/time.h>
-// TODO WINDOWS #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO WINDOWS #include <sys/utsname.h>
-// TODO WINDOWS #include <sys/select.h>
-// TODO WINDOWS #include <sys/resource.h>
-// TODO WINDOWS #include <sys/socket.h>
 #include <fcntl.h>
-// TODO WINDOWS #include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
 #include <cstring>
-// TODO ATN #include <termios.h>
 
-// TODO WINDOWS #include <pwd.h>
-// TODO WINDOWS #include <grp.h>
+#ifndef _WIN32
+#include <sys/wait.h>
+#include <sys/utsname.h>
+#include <sys/select.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <termios.h>
+#include <pwd.h>
+#include <grp.h>
+#endif
 
 /* Includes required for chroot support. */
 #if __linux__
@@ -1869,9 +1871,7 @@ PathSet DerivationGoal::exportReferences(PathSet storePaths)
 static std::once_flag dns_resolve_flag;
 
 static void preloadNSS() {
-#ifdef _WIN32
-    // TODO WINDOWS
-#else
+#if NIX_SHOULD_PRELOAD_NSS
     /* builtin:fetchurl can trigger a DNS lookup, which with glibc can trigger a dynamic library load of
        one of the glibc NSS libraries in a sandboxed child, which will fail unless the library's already
        been loaded in the parent. So we force a lookup of an invalid domain to force the NSS machinery to
@@ -2236,16 +2236,17 @@ void DerivationGoal::startBuilder()
     //builderOut.create();
 
 #ifdef _WIN32
-    std::string slaveName = "TODO WINDOWS";
+    // TODO WINDOWS
 #else
     builderOut.readSide = posix_openpt(O_RDWR | O_NOCTTY);
     if (!builderOut.readSide)
         throw SysError("opening pseudoterminal master");
-
-    std::string slaveName(ptsname(builderOut.readSide.get()));
 #endif
 
+
 #if NIX_ALLOW_BUILD_USERS
+    std::string slaveName(ptsname(builderOut.readSide.get()));
+
     if (buildUser) {
         if (chmod(slaveName.c_str(), 0600))
             throw SysError("changing mode of pseudoterminal slave");
@@ -2263,7 +2264,7 @@ void DerivationGoal::startBuilder()
     // FIXME: this doesn't work with the new devpts in the sandbox.
     if (useChroot)
         dirsInChroot[slaveName] = {slaveName, false};
-    #endif
+#endif
 
 #ifdef _WIN32
     // TODO WINDOWS
@@ -2334,6 +2335,9 @@ void DerivationGoal::startBuilder()
 
         options.allowVfork = false;
 
+#ifdef _WIN32
+    // TODO WINDOWS
+#else
         Process helper = startProcess([&]() {
 
             /* Drop additional groups here because we can't do it
@@ -2366,6 +2370,7 @@ void DerivationGoal::startBuilder()
             writeFull(builderOut.writeSide.get(), std::to_string(child) + "\n");
             _exit(0);
         }, options);
+#endif
 
         if (helper.wait() != 0)
             throw Error("unable to start build process");
@@ -2403,9 +2408,13 @@ void DerivationGoal::startBuilder()
             !buildUser &&
 #endif
             !drv->isBuiltin();
+#ifdef _WIN32
+        // TODO WINDOWS: startProcess
+#else
         pid = startProcess([&]() {
             runChild();
         }, options);
+#endif
     }
 
     /* parent */

@@ -12,11 +12,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-// TODO WINDOWS #include <sys/statvfs.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <climits>
+
+#ifndef _WIN32
+#include <sys/statvfs.h>
+#endif
 
 namespace nix {
 
@@ -170,20 +173,12 @@ void LocalStore::addTempRoot(const Path & path)
             debug(format("acquiring read lock on '%1%'") % fnTempRoots);
             lockFile(state->fdTempRoots.get(), ltRead, true);
 
-#ifdef _WIN32
-            // TODO WINDOWS
-#else
-            /* Check whether the garbage collector didn't get in our
-               way. */
-            struct stat st;
-            if (fstat(state->fdTempRoots.get(), &st) == -1)
-                throw SysError(format("statting '%1%'") % fnTempRoots);
-            if (st.st_size == 0) break;
+            FileInfo fi = fstat(state->fdTempRoots.get());
+            if (fi.size() == 0) break;
 
             /* The garbage collector deleted this file before we could
                get a lock.  (It won't delete the file after we get a
                lock.)  Try again. */
-#endif
         }
 
     }
@@ -389,7 +384,7 @@ static void readFileRoots(const char * path, Roots & roots)
 void LocalStore::findRuntimeRoots(Roots & roots, bool censor)
 {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: Runtime roots
 #else
     Roots unchecked;
 
@@ -867,7 +862,7 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
 
 uint64_t getAvail(Path const& path) {
 #ifdef _WIN32
-    // TODO WINDOWS
+    // TODO WINDOWS: getAvail
     return 0x100000;
 #else
     struct statvfs st;

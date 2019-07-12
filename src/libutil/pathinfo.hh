@@ -1,6 +1,6 @@
 #pragma once
 
-// TODO WINDOWS
+// TODO WINDOWS: pathinfo.hh
 // - move implementation to cc
 // - redesign to minimise the amount of ifdefs
 
@@ -201,7 +201,7 @@ inline FileInfo lstat(Path const &path, bool allowMissing = false) {
 #endif
 
 inline Path readlink(Path const& link) {
-    // TODO WINDOWS
+   // TODO WINDOWS
     return "";
 }
 
@@ -237,5 +237,18 @@ inline FileInfo stat(Path const &path) {
   return ret;
 }
 #endif
+
+
+inline FileInfo fstat(int fd) {
+#ifdef _WIN32
+    // TODO WINDOWS: fstat
+    return FileInfo{};
+#else
+    FileInfo fi;
+    if (fstat(fd, &fi.st) == -1)
+        throw SysError(format("statting '%1%'") % fd);
+    return fi;
+#endif
+}
 
 }

@@ -384,9 +384,6 @@ Source & readDerivation(Source & in, Store & store, BasicDerivation & drv)
         drv.outputs[name] = o;
     }
 
-#ifdef _WIN32
-    // TODO WINDOWS
-#else
     drv.inputSrcs = readStorePaths<PathSet>(store, in);
     in >> drv.platform >> drv.builder;
     drv.args = readStrings<Strings>(in);
@@ -397,7 +394,6 @@ Source & readDerivation(Source & in, Store & store, BasicDerivation & drv)
         auto value = readString(in);
         drv.env[key] = value;
     }
-#endif
 
     return in;
 }

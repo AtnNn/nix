@@ -296,4 +296,4 @@ static RegisterStoreImplementation regStore([](
 
 }
 
-#endif NIX_ALLOW_REMOTE_STORE
+#endif // NIX_ALLOW_REMOTE_STORE

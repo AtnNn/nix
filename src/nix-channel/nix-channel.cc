@@ -8,7 +8,10 @@
 
 #include <fcntl.h>
 #include <regex>
-// TODO WINDOWS #include <pwd.h>
+
+#ifndef _WIN32
+#include <pwd.h>
+#endif
 
 using namespace nix;
 
