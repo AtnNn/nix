@@ -49,13 +49,13 @@ rec {
 
   buildDeps =
     [ curl
-      bzip2 xz brotli editline
+      bzip2 xz brotli (if targetPlatform.isMinGW then readline else editline)
       openssl pkgconfig sqlite boehmgc
-      boost
+      boost169
 
       # Tests
-      git
-      mercurial
+      # git
+      # mercurial
     ]
     ++ lib.optionals stdenv.isLinux [libseccomp utillinuxMinimal]
     ++ lib.optional (stdenv.isLinux || stdenv.isDarwin) libsodium
