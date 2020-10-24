@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // For pipe2
+
 #include "util.hh"
 #include "affinity.hh"
 #include "sync.hh"

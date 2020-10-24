@@ -1,3 +1,5 @@
+ifeq (1,$(ENABLE_UNIT_TESTS))
+
 check: libutil-tests_RUN
 
 programs += libutil-tests
@@ -13,3 +15,5 @@ libutil-tests_CXXFLAGS += -I src/libutil -I src/libexpr
 libutil-tests_LIBS = libutil
 
 libutil-tests_LDFLAGS := $(GTEST_LIBS)
+
+endif

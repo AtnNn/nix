@@ -142,6 +142,22 @@ AX_BOOST_BASE([1.66], [CXXFLAGS="$BOOST_CPPFLAGS $CXXFLAGS"], [AC_MSG_ERROR([Nix
 # ends up with LDFLAGS being empty, so we set it afterwards.
 LDFLAGS="$BOOST_LDFLAGS $LDFLAGS"
 
+AC_ARG_ENABLE(boost-context, AC_HELP_STRING([--disable-boost-context],
+  [Do not build with boost_context]),
+  [enable_boost_context=$enableval],
+  [enable_boost_context=yes])
+if test e$enable_boost_context = eyes; then
+   AC_DEFINE([HAVE_BOOST_CONTEXT], [1], [Whether to use boost_context.])
+fi
+
+AC_ARG_ENABLE(lowdown, AC_HELP_STRING([--disable-lowdown],
+  [Do not build with lowdown]),
+  [enable_lowdown=$enableval],
+  [enable_lowdown=yes])
+if test "$enable_lowdown" = yes; then
+   AC_DEFINE([ENABLE_LOWDOWN], [1], [Build with lowdown])
+fi
+
 # On some platforms, new-style atomics need a helper library
 AC_MSG_CHECKING(whether -latomic is needed)
 AC_LINK_IFELSE([AC_LANG_SOURCE([[
@@ -190,17 +206,23 @@ PKG_CHECK_MODULES([SQLITE3], [sqlite3 >= 3.6.19], [CXXFLAGS="$SQLITE3_CFLAGS $CX
 # Look for libcurl, a required dependency.
 PKG_CHECK_MODULES([LIBCURL], [libcurl], [CXXFLAGS="$LIBCURL_CFLAGS $CXXFLAGS"])
 
-# Look for editline, a required dependency.
-# The the libeditline.pc file was added only in libeditline >= 1.15.2,
-# see https://github.com/troglobit/editline/commit/0a8f2ef4203c3a4a4726b9dd1336869cd0da8607,
-# but e.g. Ubuntu 16.04 has an older version, so we fall back to searching for
-# editline.h when the pkg-config approach fails.
-PKG_CHECK_MODULES([EDITLINE], [libeditline], [CXXFLAGS="$EDITLINE_CFLAGS $CXXFLAGS"], [
-  AC_CHECK_HEADERS([editline.h], [true],
+AC_ARG_ENABLE(editline, AC_HELP_STRING([--disable-editline],
+  [Do not use editline]),
+  enable_editline=$enableval, enable_editline=yes)
+if test "$enable_editline" = yes; then
+  AC_DEFINE([HAVE_EDITLINE], [1], [Whetherto use libeditline.])
+   # Look for editline, a required dependency.
+   # The the libeditline.pc file was added only in libeditline >= 1.15.2,
+   # see https://github.com/troglobit/editline/commit/0a8f2ef4203c3a4a4726b9dd1336869cd0da8607,
+   # but e.g. Ubuntu 16.04 has an older version, so we fall back to searching for
+   # editline.h when the pkg-config approach fails.
+   PKG_CHECK_MODULES([EDITLINE], [libeditline], [CXXFLAGS="$EDITLINE_CFLAGS $CXXFLAGS"], [
+   AC_CHECK_HEADERS([editline.h], [true],
     [AC_MSG_ERROR([Nix requires libeditline; it was found neither via pkg-config nor its normal header.])])
-  AC_SEARCH_LIBS([readline read_history], [editline], [],
-    [AC_MSG_ERROR([Nix requires libeditline; it was not found via pkg-config, but via its header, but required functions do not work. Maybe it is too old? >= 1.14 is required.])])
-])
+    AC_SEARCH_LIBS([readline read_history], [editline], [],
+      [AC_MSG_ERROR([Nix requires libeditline; it was not found via pkg-config, but via its header, but required functions do not work.   Maybe it is too old? >= 1.14 is required.])])
+  ])
+fi;
 
 # Look for libsodium, an optional dependency.
 PKG_CHECK_MODULES([SODIUM], [libsodium],
@@ -269,9 +291,14 @@ if test "$gc" = yes; then
 fi
 
 
-# Look for gtest.
-PKG_CHECK_MODULES([GTEST], [gtest_main])
-
+AC_ARG_ENABLE(unit-tests, AC_HELP_STRING([--disable-unit-tests],
+  [Disable the unit tests]),
+  enable_unit_tests=$enableval, enable_unit_tests=yes)
+if test "$enable_unit_tests" = yes; then
+   AC_DEFINE(ENABLE_UNIT_TESTS, [1], [Enable the unit tests.])
+  # Look for gtest.
+  PKG_CHECK_MODULES([GTEST], [gtest_main])
+fi
 
 # documentation generation switch
 AC_ARG_ENABLE(doc-gen, AC_HELP_STRING([--disable-doc-gen],
@@ -306,9 +333,9 @@ fi
 AC_SUBST(tarFlags)
 
 
-AC_ARG_WITH(sandbox-shell, AC_HELP_STRING([--with-sandbox-shell=PATH],
-  [path of a statically-linked shell to use as /bin/sh in sandboxes]),
-  sandbox_shell=$withval)
+AC_ARG_WITH(SANDBOX-SHELL, AC_HELP_STRING([--WITH-SANDBOX-SHELL=PATH],
+  [PATH OF A STATICALLY-LINKED SHELL TO USE AS /BIN/SH IN SANDBOXES]),
+  SANDBOX_SHELL=$WITHVAL)
 AC_SUBST(sandbox_shell)
 
 # Expand all variables in config.status.

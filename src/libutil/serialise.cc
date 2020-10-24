@@ -5,7 +5,9 @@
 #include <cerrno>
 #include <memory>
 
+#ifdef ENABLE_BOOST_CONTEXT
 #include <boost/coroutine2/coroutine.hpp>
+#endif
 
 
 namespace nix {
@@ -166,15 +168,17 @@ size_t StringSource::read(unsigned char * data, size_t len)
     return n;
 }
 
-
+#ifdef ENABLE_BOOST_CONTEXT
 #if BOOST_VERSION >= 106300 && BOOST_VERSION < 106600
 #error Coroutines are broken in this version of Boost!
+#endif
 #endif
 
 std::unique_ptr<Source> sinkToSource(
     std::function<void(Sink &)> fun,
     std::function<void()> eof)
 {
+#ifdef ENABLE_BOOST_CONTEXT
     struct SinkToSource : Source
     {
         typedef boost::coroutines2::coroutine<std::string> coro_t;
@@ -219,6 +223,21 @@ std::unique_ptr<Source> sinkToSource(
     };
 
     return std::make_unique<SinkToSource>(fun, eof);
+#else
+    bool started = false;
+    StringSink sink;
+    size_t position = 0;
+    return std::make_unique<LambdaSource>([&](unsigned char * out, size_t len){
+        if (!started) {
+            started = true;
+            fun(sink);
+        }
+        auto count = std::min(len, sink.s->size() - position);
+        std::copy(sink.s->data() + position, sink.s->data() + position + count, reinterpret_cast<char*>(out));
+        position += count;
+        return count;
+    });
+#endif
 }
 
 

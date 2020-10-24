@@ -3,7 +3,7 @@ libs-list :=
 ifeq ($(OS), Darwin)
   SO_EXT = dylib
 else
-  ifeq (CYGWIN,$(findstring CYGWIN,$(OS)))
+  ifneq (,$(findstring CYGWIN,$(OS))$(findstring MSYS,$(OS)))
     SO_EXT = dll
   else
     SO_EXT = so
@@ -59,7 +59,7 @@ define build-library
   $(1)_OBJS := $$(addprefix $(buildprefix), $$(addsuffix .o, $$(basename $$(_srcs))))
   _libs := $$(foreach lib, $$($(1)_LIBS), $$($$(lib)_PATH))
 
-  ifeq (CYGWIN,$(findstring CYGWIN,$(OS)))
+  ifneq (,$(findstring CYGWIN,$(OS))$(findstring MSYS,$(OS)))
     $(1)_INSTALL_DIR ?= $$(bindir)
   else
     $(1)_INSTALL_DIR ?= $$(libdir)
@@ -78,7 +78,7 @@ define build-library
       endif
     else
       ifneq ($(OS), Darwin)
-        ifneq (CYGWIN,$(findstring CYGWIN,$(OS)))
+        ifeq (,$(findstring CYGWIN,$(OS))$(findstring MSYS,$(OS)))
           $(1)_LDFLAGS += -Wl,-z,defs
         endif
       endif

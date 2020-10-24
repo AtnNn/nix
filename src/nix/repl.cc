@@ -5,6 +5,7 @@
 
 #include <setjmp.h>
 
+#ifdef ENABLE_EDITLINE
 #ifdef READLINE
 #include <readline/history.h>
 #include <readline/readline.h>
@@ -17,6 +18,7 @@
 extern "C" {
 #include <editline.h>
 }
+#endif
 #endif
 
 #include "ansicolor.hh"
@@ -101,10 +103,14 @@ NixRepl::NixRepl(const Strings & searchPath, nix::ref<Store> store)
 
 NixRepl::~NixRepl()
 {
+#ifdef ENABLE_EDITLINE
     write_history(historyFile.c_str());
+#endif
 }
 
 static NixRepl * curRepl; // ugly
+
+#ifdef ENABLE_EDITLINE
 
 static char * completionCallback(char * s, int *match) {
   auto possible = curRepl->completePrefix(s);
@@ -168,6 +174,8 @@ static int listPossibleCallback(char *s, char ***avp) {
   return ac;
 }
 
+#endif
+
 namespace {
     // Used to communicate to NixRepl::getLine whether a signal occurred in ::readline.
     volatile sig_atomic_t g_signal_received = 0;
@@ -188,6 +196,7 @@ void NixRepl::mainLoop(const std::vector<std::string> & files)
     reloadFiles();
     if (!loadedFiles.empty()) std::cout << std::endl;
 
+#ifdef ENABLE_EDITLINE
     // Allow nix-repl specific settings in .inputrc
     rl_readline_name = "nix-repl";
     createDirs(dirOf(historyFile));
@@ -200,13 +209,16 @@ void NixRepl::mainLoop(const std::vector<std::string> & files)
     rl_set_complete_func(completionCallback);
     rl_set_list_possib_func(listPossibleCallback);
 #endif
+#endif
 
     std::string input;
 
     while (true) {
         // When continuing input from previous lines, don't print a prompt, just align to the same
         // number of chars as the prompt.
-        if (!getLine(input, input.empty() ? "nix-repl> " : "          "))
+        auto res = getLine(input, input.empty() ? "nix-repl> " : "          ");
+
+        if (!res)
             break;
 
         try {
@@ -259,8 +271,14 @@ bool NixRepl::getLine(string & input, const std::string &prompt)
     };
 
     setupSignals();
+#ifdef ENABLE_EDITLINE
     char * s = readline(prompt.c_str());
     Finally doFree([&]() { free(s); });
+#else
+    std::string line;
+    std::getline(std::cin, line);
+    char const * s = std::cin.bad() ? nullptr : line.c_str();
+#endif
     restoreSignals();
 
     if (g_signal_received) {
@@ -533,7 +551,11 @@ bool NixRepl::processLine(string line)
 
             markdown += trim(stripIndentation(doc->doc));
 
+#ifdef ENABLE_LOWDOWN
             std::cout << renderMarkdownToTerminal(markdown);
+#else
+            std::cout << markdown;
+#endif
         } else
             throw Error("value does not have documentation");
     }

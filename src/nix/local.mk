@@ -19,7 +19,11 @@ nix_CXXFLAGS += -I src/libutil -I src/libstore -I src/libfetchers -I src/libexpr
 
 nix_LIBS = libexpr libmain libfetchers libstore libutil
 
-nix_LDFLAGS = -pthread $(SODIUM_LIBS) $(EDITLINE_LIBS) $(BOOST_LDFLAGS) -llowdown
+nix_LDFLAGS = -pthread $(SODIUM_LIBS) $(EDITLINE_LIBS) $(BOOST_LDFLAGS)
+
+ifeq (1,$(ENABLE_LOWDOWN))
+  nix_LDFLAGS += -llowdown
+endif
 
 $(foreach name, \
   nix-build nix-channel nix-collect-garbage nix-copy-closure nix-daemon nix-env nix-hash nix-instantiate nix-prefetch-url nix-shell nix-store, \

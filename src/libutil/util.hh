@@ -1,5 +1,7 @@
 #pragma once
 
+#define _GNU_SOURCE // For pthread_kill
+
 #include "types.hh"
 #include "error.hh"
 #include "logging.hh"
@@ -7,6 +9,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/signal.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <signal.h>

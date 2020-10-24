@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // For GLOB_TILDE
+
 #include "args.hh"
 #include "hash.hh"
 
